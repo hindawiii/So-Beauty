@@ -1,0 +1,6 @@
+{
+  "name": "So Beauty",
+  "description": "متجر منتجات العناية الطبيعية بالبشرة — Natural skincare e-commerce store with product catalog, cart, and checkout",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
