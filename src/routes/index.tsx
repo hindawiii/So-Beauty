@@ -1,7 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Suspense } from "react";
-import { ShieldCheck, CreditCard, Truck, Sparkles, Star, ArrowLeft } from "lucide-react";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import {
+  ShieldCheck,
+  CreditCard,
+  Truck,
+  Sparkles,
+  Star,
+  ArrowLeft,
+  CheckCircle2,
+} from "lucide-react";
 import heroProducts from "@/assets/hero-products.jpg";
 import natural from "@/assets/natural-collection.jpg";
 import beforeImg from "@/assets/before.jpg";
@@ -15,6 +23,8 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
 import { listProducts } from "@/lib/products.functions";
 import { Button } from "@/components/ui/button";
+import { AddReviewDialog } from "@/components/AddReviewDialog";
+import { getReviews, Review, INITIAL_REVIEWS } from "@/lib/reviews";
 
 const featuredQuery = queryOptions({
   queryKey: ["products", "featured"],
@@ -39,12 +49,6 @@ const features = [
   { icon: Truck, title: "شحن سريع", desc: "توصيل طلبك في أسرع وقت." },
   { icon: CreditCard, title: "دفع آمن", desc: "ادفع عند الاستلام أو أونلاين." },
   { icon: ShieldCheck, title: "أصلية 100%", desc: "نضمن جودة وأصالة كل منتج." },
-];
-
-const testimonials = [
-  { name: "لولي", rating: 5, body: "المنتجات فعلاً غيرت روتين بشرتي." },
-  { name: "سيدة ( البطة )", rating: 5, body: "أحس الفرق من أول أسبوع." },
-  { name: "ولاء 😇", rating: 5, body: "تجربتي معهم ممتازة والدعم متواجد دايماً." },
 ];
 
 function Index() {
@@ -165,25 +169,81 @@ function Index() {
           </div>
         </section>
 
-        <section className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">آراء عملائنا</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
-              <div key={t.name} className="bg-card p-6 rounded-2xl border">
-                <div className="flex mb-2">
-                  {Array.from({ length: t.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                  ))}
-                </div>
-                <p className="mb-3 text-muted-foreground">{t.body}</p>
-                <p className="font-bold">— {t.name}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <CustomerReviewsSection />
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function CustomerReviewsSection() {
+  const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
+
+  const loadReviews = useCallback(async () => {
+    try {
+      const data = await getReviews();
+      if (data && data.length > 0) {
+        setReviews(data);
+      }
+    } catch {
+      // fallback handled gracefully
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReviews();
+    const handleAdded = () => {
+      loadReviews();
+    };
+    window.addEventListener("so_beauty_review_added", handleAdded);
+    return () => window.removeEventListener("so_beauty_review_added", handleAdded);
+  }, [loadReviews]);
+
+  return (
+    <section className="container mx-auto px-4 py-12 md:py-16">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900">آراء عملائنا</h2>
+            <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400" />
+          </div>
+          <p className="text-sm text-slate-600">
+            تجارب حقيقية لعميلاتنا مع منتجات سو بيوتي الطبيعية للعناية بالبشرة
+          </p>
+        </div>
+        <AddReviewDialog onReviewAdded={loadReviews} />
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {reviews.map((t) => (
+          <div
+            key={t.id || t.name}
+            className="bg-card p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: t.rating }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                {t.is_verified && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    تجربة موثوقة
+                  </span>
+                )}
+              </div>
+              <p className="mb-4 text-slate-700 text-sm leading-relaxed font-normal">"{t.body}"</p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="font-semibold text-slate-900 text-sm">— {t.name}</span>
+              <span className="text-xs text-slate-400">تقييم معتمد</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
+import { SUDAN_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
 import {
   CheckCircle2,
   ShoppingBag,
@@ -20,6 +22,8 @@ import {
   UserPlus,
   ArrowLeft,
   PackageCheck,
+  MapPin,
+  Clock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/checkout")({
@@ -47,12 +51,25 @@ function CheckoutPage() {
     full_name: "",
     phone: "",
     shipping_address: "",
-    city: "",
+    city: "أم درمان",
     notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
   const [completedOrder, setCompletedOrder] = useState<CompletedOrderInfo | null>(null);
+
+  // Initialize saved city from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("so_beauty_selected_city");
+    if (saved) {
+      setForm((f) => ({ ...f, city: saved }));
+    }
+  }, []);
+
+  const currentCity = form.city.trim() || "أم درمان";
+  const shippingFee = getShippingFee(currentCity, total);
+  const finalTotal = total + shippingFee;
+  const deliveryEstimate = getDeliveryTimeEstimate(currentCity);
 
   // Check auth state and load user profile if authenticated
   useEffect(() => {
@@ -98,11 +115,12 @@ function CheckoutPage() {
     }));
 
     try {
+      const finalCity = form.city.trim() || currentCity;
       const res = await submit({
         data: {
           full_name: form.full_name,
           phone: form.phone,
-          city: form.city,
+          city: finalCity,
           shipping_address: form.shipping_address,
           notes: form.notes ? form.notes : undefined,
           items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
@@ -117,7 +135,7 @@ function CheckoutPage() {
         total: res.total,
         fullName: form.full_name,
         phone: form.phone,
-        city: form.city,
+        city: finalCity,
         shippingAddress: form.shipping_address,
         items: orderItemsSnapshot,
         isGuest: res.isGuest,
@@ -194,15 +212,25 @@ function CheckoutPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/products" className="w-full sm:w-auto">
+              <Link
+                to="/track-order"
+                search={{ q: completedOrder.orderId }}
+                className="w-full sm:w-auto"
+              >
                 <Button className="w-full h-11 px-6 font-medium gap-2">
+                  <Truck className="w-4 h-4" />
+                  تتبع الشحنة الآن
+                </Button>
+              </Link>
+              <Link to="/products" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full h-11 px-6 font-medium gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   متابعة التسوق
                 </Button>
               </Link>
               {!completedOrder.isGuest && (
                 <Link to="/orders" className="w-full sm:w-auto">
-                  <Button variant="outline" className="w-full h-11 px-6 font-medium gap-2">
+                  <Button variant="ghost" className="w-full h-11 px-6 font-medium gap-2">
                     <PackageCheck className="w-4 h-4" />
                     عرض سجل طلباتي
                   </Button>
@@ -334,18 +362,54 @@ function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="city" className="text-sm font-medium">
-                  المحافظة / المدينة <span className="text-destructive">*</span>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="city"
+                  className="text-sm font-medium flex items-center justify-between"
+                >
+                  <span>
+                    المدينة / الولاية <span className="text-destructive">*</span>
+                  </span>
+                  <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-primary" />
+                    {deliveryEstimate}
+                  </span>
                 </Label>
-                <Input
-                  id="city"
-                  required
-                  placeholder="مثال: القاهرة، مدينة نصر"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  className="h-11 text-start"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <select
+                    id="city-select"
+                    value={SUDAN_CITIES.some((c) => c.name === form.city) ? form.city : "other"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "other") {
+                        setForm({ ...form, city: "" });
+                      } else {
+                        setForm({ ...form, city: val });
+                        localStorage.setItem("so_beauty_selected_city", val);
+                      }
+                    }}
+                    className="h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {SUDAN_CITIES.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name} {shippingFee === 0 ? "(شحن مجاني)" : `(${c.rate} ج.م)`}
+                      </option>
+                    ))}
+                    <option value="other">مدينة أخرى (إدخال يدوي)</option>
+                  </select>
+
+                  <Input
+                    id="city"
+                    required
+                    placeholder="اكتبي اسم مدينتكِ أو منطقتكِ..."
+                    value={form.city}
+                    onChange={(e) => {
+                      setForm({ ...form, city: e.target.value });
+                      localStorage.setItem("so_beauty_selected_city", e.target.value);
+                    }}
+                    className="h-11 text-start rounded-xl text-sm"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -381,7 +445,9 @@ function CheckoutPage() {
           </div>
 
           {/* Order Summary Box (1 col) */}
-          <div className="space-y-6">
+          <div className="space-y-4">
+            <FreeShippingProgressBar total={total} showLinkToProducts={false} />
+
             <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-sm sticky top-24">
               <h2 className="text-lg font-semibold mb-4 border-b border-border/60 pb-3 flex items-center justify-between">
                 <span>ملخص الطلب</span>
@@ -409,18 +475,26 @@ function CheckoutPage() {
                 ))}
               </div>
 
-              <div className="space-y-2 border-t border-border/60 pt-4 text-sm">
+              <div className="space-y-2.5 border-t border-border/60 pt-4 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>قيمة المنتجات</span>
                   <span>{total.toFixed(2)} ج.م</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>الشحن والتوصيل</span>
-                  <span className="text-emerald-600 font-medium">مجاناً</span>
+                <div className="flex justify-between text-muted-foreground items-center">
+                  <span>الشحن والتوصيل ({currentCity})</span>
+                  {shippingFee === 0 ? (
+                    <span className="text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-xs">
+                      مجاناً 🎉
+                    </span>
+                  ) : (
+                    <span className="font-medium text-foreground">
+                      {shippingFee.toFixed(2)} ج.م
+                    </span>
+                  )}
                 </div>
                 <div className="flex justify-between text-base font-bold text-foreground pt-2 border-t border-border/60">
                   <span>الإجمالي النهائي</span>
-                  <span className="text-primary text-lg">{total.toFixed(2)} ج.م</span>
+                  <span className="text-primary text-xl">{finalTotal.toFixed(2)} ج.م</span>
                 </div>
               </div>
 

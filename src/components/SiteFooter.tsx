@@ -1,10 +1,21 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Store, Info, Phone, MapPin, MessageCircle, Facebook, Instagram } from "lucide-react";
+import {
+  Home,
+  Store,
+  Info,
+  Phone,
+  MapPin,
+  MessageCircle,
+  Facebook,
+  Instagram,
+  Truck,
+} from "lucide-react";
 
 export function SiteFooter() {
   const quickLinks = [
     { to: "/", label: "الرئيسية", Icon: Home },
     { to: "/products", label: "المتجر", Icon: Store },
+    { to: "/track-order", label: "تتبع طلبك", Icon: Truck },
     { to: "/about", label: "من نحن", Icon: Info },
     { to: "/account", label: "تواصل معنا", Icon: Phone },
   ] as const;

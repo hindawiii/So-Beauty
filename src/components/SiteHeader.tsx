@@ -1,13 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Menu, X, Search } from "lucide-react";
+import { ShoppingCart, User, LogOut, Menu, X, Search, Heart, ShieldCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
   const { count } = useCart();
+  const { count: wishlistCount } = useWishlist();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export function SiteHeader() {
     { to: "/offers", label: "العروض", highlight: false },
     { to: "/products", label: "العناية بالبشرة", highlight: false },
     { to: "/boxes", label: "بوكسات العناية", highlight: false },
+    { to: "/track-order", label: "تتبع طلبك", highlight: false },
   ] as const;
 
   return (
@@ -114,6 +117,29 @@ export function SiteHeader() {
               </Button>
             </Link>
           )}
+          <Link
+            to="/admin"
+            className="p-2 rounded-full hover:bg-muted text-slate-700 hover:text-primary transition-colors hidden sm:inline-flex"
+            aria-label="لوحة الإدارة"
+            title="لوحة الإدارة والمخزون"
+          >
+            <ShieldCheck className="w-5 h-5 text-primary" />
+          </Link>
+
+          {/* Wishlist Link */}
+          <Link
+            to="/wishlist"
+            className="relative p-2 rounded-full hover:bg-muted text-foreground hover:text-rose-600 transition-colors"
+            aria-label="قائمة المفضلة"
+          >
+            <Heart className="w-5 h-5" />
+            {wishlistCount > 0 && (
+              <span className="absolute -top-1 -start-1 bg-rose-500 text-white text-[10px] font-bold min-w-5 h-5 px-1 rounded-full flex items-center justify-center shadow-xs">
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
+
           <Link to="/cart" className="relative p-2 rounded-full hover:bg-muted" aria-label="السلة">
             <ShoppingCart className="w-5 h-5" />
             {count > 0 && (
@@ -161,6 +187,21 @@ export function SiteHeader() {
                 {n.label}
               </Link>
             ))}
+            <Link
+              to="/wishlist"
+              onClick={() => setOpen(false)}
+              className="text-sm font-semibold py-1 flex items-center justify-between text-foreground hover:text-primary"
+            >
+              <span className="flex items-center gap-2">
+                <Heart className="w-4 h-4 text-rose-500" />
+                المفضلة
+              </span>
+              {wishlistCount > 0 && (
+                <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
             {!email && (
               <Link
                 to="/auth"
@@ -188,6 +229,14 @@ export function SiteHeader() {
                 طلباتي
               </Link>
             )}
+            <Link
+              to="/admin"
+              onClick={() => setOpen(false)}
+              className="text-sm font-semibold py-1 flex items-center gap-2 text-primary"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              لوحة الإدارة والمخزون
+            </Link>
           </div>
         </nav>
       )}

@@ -155,3 +155,23 @@ export function atomicDecrementMockStock(
   product.updated_at = new Date().toISOString();
   return { success: true, remaining: product.stock };
 }
+
+/**
+ * Admin: Update product details (stock, price, active, featured)
+ */
+export function updateMockProduct(
+  productId: string,
+  patch: Partial<Pick<Product, "stock" | "price" | "original_price" | "is_active" | "is_featured">>,
+): Product | null {
+  const product = MOCK_PRODUCTS.find((p) => p.id === productId);
+  if (!product) return null;
+
+  if (patch.stock !== undefined) product.stock = Math.max(0, Math.floor(patch.stock));
+  if (patch.price !== undefined) product.price = Math.max(0, patch.price);
+  if (patch.original_price !== undefined) product.original_price = patch.original_price;
+  if (patch.is_active !== undefined) product.is_active = patch.is_active;
+  if (patch.is_featured !== undefined) product.is_featured = patch.is_featured;
+  product.updated_at = new Date().toISOString();
+
+  return { ...product };
+}

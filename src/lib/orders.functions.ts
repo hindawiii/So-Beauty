@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { MOCK_PRODUCTS, atomicDecrementMockStock } from "./mock-products";
+import { getShippingFee } from "./shipping";
 import { z } from "zod";
 
 export type SavedOrder = {
@@ -27,7 +28,99 @@ export type SavedOrder = {
 };
 
 // In-memory orders registry for guests and fallback when database is in transition
-export const MOCK_ORDERS: SavedOrder[] = [];
+export const MOCK_ORDERS: SavedOrder[] = [
+  {
+    id: "ord-88129034-7a1b-4c2d-9e3f-1a2b3c4d5e6f",
+    user_id: null,
+    total: 620,
+    status: "confirmed",
+    full_name: "أميرة عثمان عبد الله",
+    phone: "0912345678",
+    shipping_address: "حي المطار، شارع أفريقيا، عمارة الأمل، شقة 4",
+    city: "الخرطوم",
+    notes: "يرجى الاتصال قبل الوصول بنصف ساعة",
+    created_at: "2026-09-09T14:30:00Z",
+    order_items: [
+      {
+        id: "item-1",
+        product_id: "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d",
+        product_name: "سيروم فيتامين سي النقي",
+        quantity: 1,
+        unit_price: 280,
+      },
+      {
+        id: "item-2",
+        product_id: "b2c3d4e5-f6a1-4b2c-9d3e-4f5a6b7c8d9e",
+        product_name: "مرطب الهيالورونيك المكثف",
+        quantity: 1,
+        unit_price: 240,
+      },
+    ],
+  },
+  {
+    id: "ord-99238145-8b2c-5d3e-0f4a-2b3c4d5e6f7a",
+    user_id: null,
+    total: 940,
+    status: "shipped",
+    full_name: "إسراء مجذوب التاج",
+    phone: "0123456789",
+    shipping_address: "الثورة الحارة الرابعة، بالقرب من صيدلية النور",
+    city: "أم درمان",
+    notes: "توصيل مسائي إن أمكن",
+    created_at: "2026-09-08T11:15:00Z",
+    order_items: [
+      {
+        id: "item-3",
+        product_id: "a7b8c9d0-e1f2-4a3b-8c4d-9e0f1a2b3c4d",
+        product_name: "بوكس العناية الملكي المتكامل",
+        quantity: 1,
+        unit_price: 890,
+      },
+    ],
+  },
+  {
+    id: "ord-77349256-9c3d-6e4f-1a5b-3c4d5e6f7a8b",
+    user_id: null,
+    total: 390,
+    status: "pending",
+    full_name: "منى الطيب عيسى",
+    phone: "0998765432",
+    shipping_address: "حي الصفا، شارع الستين",
+    city: "الخرطوم بحري",
+    notes: null,
+    created_at: "2026-09-10T04:20:00Z",
+    order_items: [
+      {
+        id: "item-4",
+        product_id: "d4e5f6a1-b2c3-4d4e-bf5a-6b7c8d9e0f1a",
+        product_name: "زيت الورد النقي لتجديد البشرة",
+        quantity: 1,
+        unit_price: 320,
+      },
+    ],
+  },
+  {
+    id: "ord-66450367-0d4e-7f5a-2b6c-4d5e6f7a8b9c",
+    user_id: null,
+    total: 549,
+    status: "delivered",
+    full_name: "فاطمة الزهراء صديق",
+    phone: "0923456781",
+    shipping_address: "حي الروضة، قرب مستشفى بورتسودان",
+    city: "بورتسودان",
+    notes: "تم الاستلام بنجاح",
+    created_at: "2026-09-06T09:40:00Z",
+    order_items: [
+      {
+        id: "item-5",
+        product_id: "e5f6a1b2-c3d4-4e5f-8a1b-7c8d9e0f1a2b",
+        product_name: "مجموعة التوهج الكاملة (عرض خاص)",
+        quantity: 1,
+        unit_price: 499,
+      },
+    ],
+  },
+];
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
@@ -182,7 +275,11 @@ export const createOrder = createServerFn({ method: "POST" })
       }
     }
 
-    // 6. Generate order ID and record order
+    // 6. Calculate shipping fee and final total
+    const shippingFee = getShippingFee(data.city, total);
+    const finalTotal = total + shippingFee;
+
+    // 7. Generate order ID and record order
     const orderId = crypto.randomUUID();
     let dbSuccess = false;
 
@@ -191,7 +288,7 @@ export const createOrder = createServerFn({ method: "POST" })
         const { error: oErr } = await sb.from("orders").insert({
           id: orderId,
           user_id: authenticatedUserId as never,
-          total,
+          total: finalTotal,
           full_name: data.full_name,
           phone: data.phone,
           shipping_address: data.shipping_address,
@@ -219,7 +316,7 @@ export const createOrder = createServerFn({ method: "POST" })
     const savedOrder: SavedOrder = {
       id: orderId,
       user_id: authenticatedUserId,
-      total,
+      total: finalTotal,
       status: "pending",
       full_name: data.full_name,
       phone: data.phone,
@@ -236,7 +333,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     return {
       orderId,
-      total,
+      total: finalTotal,
       isGuest: !authenticatedUserId,
       status: "pending",
       itemsCount: data.items.reduce((acc, curr) => acc + curr.quantity, 0),
@@ -285,4 +382,120 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .upsert({ id: context.userId, ...data });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+const trackOrderSchema = z.object({
+  query: z.string().trim().min(3, "يرجى كتابة رقم الطلب أو رقم الهاتف المعتمد"),
+});
+
+export const trackOrder = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => trackOrderSchema.parse(data))
+  .handler(async ({ data }) => {
+    const raw = data.query.trim();
+    const cleanPhone = raw.replace(/[^0-9+]/g, "");
+    const cleanId = raw.replace(/^#/, "").toLowerCase();
+
+    // 1. Check in-memory / local saved orders
+    const matchedMock = MOCK_ORDERS.filter((o) => {
+      const matchId =
+        o.id.toLowerCase() === cleanId ||
+        o.id.toLowerCase().startsWith(cleanId) ||
+        o.id.slice(0, 8).toLowerCase() === cleanId;
+      const matchPhone =
+        cleanPhone.length >= 6 && o.phone.replace(/[^0-9+]/g, "").includes(cleanPhone);
+      return matchId || matchPhone;
+    });
+
+    // 2. Check Supabase if connected
+    const sb = getSupabaseClient();
+    if (sb) {
+      try {
+        let queryBuilder = sb
+          .from("orders")
+          .select(
+            "id, total, status, full_name, phone, shipping_address, city, created_at, order_items(id, product_name, quantity, unit_price)",
+          );
+
+        if (cleanId.length === 36) {
+          queryBuilder = queryBuilder.eq("id", cleanId);
+        } else if (cleanPhone.length >= 7) {
+          queryBuilder = queryBuilder.ilike("phone", `%${cleanPhone}%`);
+        } else {
+          queryBuilder = queryBuilder.ilike("id", `${cleanId}%`);
+        }
+
+        const { data: dbOrders, error } = await queryBuilder
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (!error && dbOrders && dbOrders.length > 0) {
+          const ids = new Set(dbOrders.map((o) => o.id));
+          const combined = [...dbOrders, ...matchedMock.filter((m) => !ids.has(m.id))];
+          return combined;
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    return matchedMock;
+  });
+
+/**
+ * Admin: List all orders with optional status or text filter
+ */
+export const adminListAllOrders = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = getSupabaseClient();
+  if (sb) {
+    try {
+      const { data: dbOrders, error } = await sb
+        .from("orders")
+        .select(
+          "id, total, status, full_name, phone, shipping_address, city, notes, created_at, order_items(id, product_name, quantity, unit_price)",
+        )
+        .order("created_at", { ascending: false });
+
+      if (!error && dbOrders && dbOrders.length > 0) {
+        const dbIds = new Set(dbOrders.map((o) => o.id));
+        const mockNonOverlap = MOCK_ORDERS.filter((m) => !dbIds.has(m.id));
+        return [...dbOrders, ...mockNonOverlap];
+      }
+    } catch {
+      // Fallback to in-memory orders
+    }
+  }
+  return MOCK_ORDERS;
+});
+
+const updateOrderStatusSchema = z.object({
+  orderId: z.string(),
+  newStatus: z.enum(["pending", "confirmed", "shipped", "delivered", "cancelled"]),
+});
+
+/**
+ * Admin: Update status of any order (persists to DB and in-memory registry)
+ */
+export const adminUpdateOrderStatus = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => updateOrderStatusSchema.parse(data))
+  .handler(async ({ data }) => {
+    // 1. Update in-memory registry
+    const localOrder = MOCK_ORDERS.find(
+      (o) =>
+        o.id === data.orderId || o.id.startsWith(data.orderId) || o.id.slice(0, 8) === data.orderId,
+    );
+    if (localOrder) {
+      localOrder.status = data.newStatus;
+    }
+
+    // 2. Update Supabase if available
+    const sb = getSupabaseClient();
+    if (sb) {
+      try {
+        await sb.from("orders").update({ status: data.newStatus }).eq("id", data.orderId);
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    return { ok: true, status: data.newStatus };
   });
