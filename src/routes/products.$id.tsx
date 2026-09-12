@@ -11,7 +11,6 @@ import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
-  MessageCircle,
   ShoppingBag,
   CheckCircle2,
   ShieldCheck,
@@ -25,6 +24,7 @@ import {
   Star,
 } from "lucide-react";
 import { getWhatsAppProductOrderUrl } from "@/lib/whatsapp";
+import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 import { ProductReviewsSection } from "@/components/ProductReviewsSection";
 
 const productQuery = (id: string) =>
@@ -313,7 +313,7 @@ function Detail() {
                 variant="outline"
                 className="w-full h-12 rounded-xl border-emerald-600/40 hover:border-emerald-600 hover:bg-emerald-50 text-emerald-700 font-semibold gap-2"
               >
-                <MessageCircle className="w-5 h-5 text-emerald-600" />
+                <WhatsAppEmblemIcon size={20} className="text-emerald-600" />
                 طلب فوري عبر واتساب
               </Button>
             </a>

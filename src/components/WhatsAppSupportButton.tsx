@@ -1,16 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  MessageCircle,
-  X,
-  GripVertical,
-  Send,
-  Sparkles,
-  Minus,
-  Headphones,
-  CheckCircle2,
-} from "lucide-react";
+import { X, GripVertical, Send, Sparkles, Minus, CheckCircle2 } from "lucide-react";
 import { getWhatsAppChatUrl } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
+import { WhatsAppOrganicIcon, WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 
 const STORAGE_KEY = "so_beauty_wa_bubble_pos";
 const STORAGE_MINIMIZED_KEY = "so_beauty_wa_minimized";
@@ -208,7 +200,7 @@ export function WhatsAppSupportButton() {
     return (
       <aside aria-label="الدعم السريع عبر واتساب" className="fixed bottom-6 end-6 z-40">
         <div className="flex items-center gap-2.5 bg-emerald-600 text-white px-4 py-3 rounded-full shadow-lg">
-          <MessageCircle className="w-5 h-5 fill-current" />
+          <WhatsAppEmblemIcon size={20} className="text-white" />
           <span className="text-sm font-medium">واتساب سو بيوتي</span>
         </div>
       </aside>
@@ -239,8 +231,8 @@ export function WhatsAppSupportButton() {
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Headphones className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <WhatsAppOrganicIcon size={28} showShadow={false} />
               </div>
               <div>
                 <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -316,9 +308,9 @@ export function WhatsAppSupportButton() {
           {/* Main Action Button */}
           <Button
             onClick={() => startChat()}
-            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2 shadow-sm"
+            className="w-full h-11 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-semibold text-xs gap-2 shadow-xs transition-colors"
           >
-            <MessageCircle className="w-4 h-4 fill-current" />
+            <WhatsAppEmblemIcon size={18} className="text-white" />
             <span>محادثة مباشرة على واتساب</span>
           </Button>
 
@@ -337,8 +329,8 @@ export function WhatsAppSupportButton() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className={`group relative flex items-center cursor-grab active:cursor-grabbing transition-shadow ${
-          isDragging ? "scale-105 shadow-2xl opacity-90" : "hover:scale-105 shadow-xl"
+        className={`group relative flex items-center cursor-grab active:cursor-grabbing transition-transform ${
+          isDragging ? "scale-105 opacity-95" : "hover:scale-105"
         }`}
         title="اسحبي الزر لأي مكان، أو انقري لفتح المحادثة"
         aria-label="تواصل مع خبيرة العناية عبر واتساب"
@@ -346,18 +338,18 @@ export function WhatsAppSupportButton() {
         {isMinimized ? (
           /* Minimized Edge Pill Mode */
           <div
-            className={`flex items-center gap-1.5 bg-emerald-600 text-white py-2 px-3 rounded-full shadow-lg border-2 border-white transition-all ${
+            className={`flex items-center gap-1.5 bg-[#25D366] text-white py-2 px-3 rounded-full shadow-lg border-2 border-white transition-all ${
               dockSide === "left" ? "rounded-s-none ps-2" : "rounded-e-none pe-2"
             }`}
           >
             <div className="relative">
               <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping absolute" />
-              <MessageCircle className="w-4 h-4 fill-current relative" />
+              <WhatsAppEmblemIcon size={18} className="text-white relative" />
             </div>
             <span className="text-xs font-bold whitespace-nowrap hidden sm:inline">واتساب</span>
           </div>
         ) : (
-          /* Full Circular Draggable Floating Bubble */
+          /* Full Organic Droplet Floating Bubble */
           <div className="relative flex items-center">
             {/* Grip handle indicator */}
             <div
@@ -368,22 +360,27 @@ export function WhatsAppSupportButton() {
               <GripVertical className="w-3 h-3" />
             </div>
 
-            {/* Bubble Circle */}
+            {/* Bubble Button with Organic Soft Curves */}
             <button
               type="button"
-              className="relative flex items-center justify-center w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/30 border-2 border-white transition-colors"
+              className="relative flex items-center justify-center focus:outline-none transition-transform"
               aria-expanded={isExpanded}
             >
               {/* Green online pulse indicator */}
-              <span className="absolute top-0.5 end-0.5 flex h-3.5 w-3.5">
+              <span className="absolute top-1 end-1 z-10 flex h-3.5 w-3.5 pointer-events-none">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-white" />
               </span>
 
               {isExpanded ? (
-                <X className="w-6 h-6 transition-transform duration-200 rotate-90 group-hover:rotate-0" />
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-2 border-white transition-all">
+                  <X className="w-6 h-6 transition-transform duration-200" />
+                </div>
               ) : (
-                <MessageCircle className="w-7 h-7 fill-current" />
+                <WhatsAppOrganicIcon
+                  size={58}
+                  className="filter drop-shadow-md hover:drop-shadow-xl transition-all"
+                />
               )}
             </button>
           </div>

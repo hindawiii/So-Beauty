@@ -44,6 +44,7 @@ import { adminListAllProducts, adminUpdateProduct } from "@/lib/products.functio
 import { Product } from "@/lib/mock-products";
 import { getWhatsAppChatUrl } from "@/lib/whatsapp";
 import { getReviews } from "@/lib/reviews";
+import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -730,7 +731,7 @@ function AdminDashboardPage() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold transition-colors"
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
+                            <WhatsAppEmblemIcon size={14} className="text-emerald-600" />
                             <span>واتساب</span>
                           </a>
                         </div>

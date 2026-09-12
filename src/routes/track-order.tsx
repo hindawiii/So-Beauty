@@ -27,6 +27,7 @@ import { trackOrder } from "@/lib/orders.functions";
 import { getWhatsAppChatUrl } from "@/lib/whatsapp";
 import { getDeliveryTimeEstimate } from "@/lib/shipping";
 import { toast } from "sonner";
+import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 
 interface OrderResult {
   id: string;
@@ -571,7 +572,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold transition-colors"
         >
-          <MessageCircle className="w-4 h-4 text-emerald-600" />
+          <WhatsAppEmblemIcon size={16} className="text-emerald-600" />
           <span>تواصل فوري برقم الطلب عبر واتساب</span>
         </a>
       </div>
