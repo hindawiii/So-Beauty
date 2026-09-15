@@ -137,3 +137,223 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
 
     return { ok: true, product: inMem };
   });
+
+/**
+ * Admin: Create a new product with complete details
+ */
+export const adminCreateProduct = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      name: string;
+      category: Database["public"]["Enums"]["product_category"];
+      price: number;
+      original_price?: number | null;
+      stock: number;
+      image_url?: string;
+      description?: string;
+      is_featured?: boolean;
+      is_active?: boolean;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date().toISOString();
+
+    const newProduct: Product = {
+      id: newId,
+      name: data.name.trim(),
+      category: data.category,
+      price: Math.max(0, Number(data.price) || 0),
+      original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
+      stock: Math.max(0, Number(data.stock) || 0),
+      image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
+      description: data.description?.trim() || null,
+      is_featured: data.is_featured ?? false,
+      is_active: data.is_active ?? true,
+      created_at: now,
+      updated_at: now,
+    };
+
+    // 1. Insert in-memory at top of products list
+    MOCK_PRODUCTS.unshift(newProduct);
+
+    // 2. Insert into database if available
+    const sb = serverClient();
+    if (sb) {
+      try {
+        await sb.from("products").insert({
+          id: newProduct.id,
+          name: newProduct.name,
+          category: newProduct.category,
+          price: newProduct.price,
+          original_price: newProduct.original_price,
+          stock: newProduct.stock,
+          image_url: newProduct.image_url,
+          description: newProduct.description,
+          is_featured: newProduct.is_featured,
+          is_active: newProduct.is_active,
+          created_at: newProduct.created_at,
+          updated_at: newProduct.updated_at,
+        });
+      } catch (err) {
+        console.warn("[Admin Create Product] Database insert fallback to in-memory:", err);
+      }
+    }
+
+    return { ok: true, product: newProduct };
+  });
+
+/**
+ * Admin: Full Update of any product details
+ */
+export const adminFullUpdateProduct = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      id: string;
+      name: string;
+      category: Database["public"]["Enums"]["product_category"];
+      price: number;
+      original_price?: number | null;
+      stock: number;
+      image_url?: string;
+      description?: string;
+      is_featured?: boolean;
+      is_active?: boolean;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const idx = MOCK_PRODUCTS.findIndex((p) => p.id === data.id);
+    const now = new Date().toISOString();
+
+    let updated: Product;
+    if (idx !== -1) {
+      MOCK_PRODUCTS[idx] = {
+        ...MOCK_PRODUCTS[idx],
+        name: data.name.trim(),
+        category: data.category,
+        price: Math.max(0, Number(data.price) || 0),
+        original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
+        stock: Math.max(0, Number(data.stock) || 0),
+        image_url: data.image_url?.trim() || MOCK_PRODUCTS[idx].image_url,
+        description:
+          data.description !== undefined ? data.description : MOCK_PRODUCTS[idx].description,
+        is_featured: data.is_featured ?? MOCK_PRODUCTS[idx].is_featured,
+        is_active: data.is_active ?? MOCK_PRODUCTS[idx].is_active,
+        updated_at: now,
+      };
+      updated = MOCK_PRODUCTS[idx];
+    } else {
+      updated = {
+        id: data.id,
+        name: data.name.trim(),
+        category: data.category,
+        price: Math.max(0, Number(data.price) || 0),
+        original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
+        stock: Math.max(0, Number(data.stock) || 0),
+        image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
+        description: data.description || null,
+        is_featured: data.is_featured ?? false,
+        is_active: data.is_active ?? true,
+        created_at: now,
+        updated_at: now,
+      };
+      MOCK_PRODUCTS.unshift(updated);
+    }
+
+    const sb = serverClient();
+    if (sb) {
+      try {
+        await sb
+          .from("products")
+          .update({
+            name: updated.name,
+            category: updated.category,
+            price: updated.price,
+            original_price: updated.original_price,
+            stock: updated.stock,
+            image_url: updated.image_url,
+            description: updated.description,
+            is_featured: updated.is_featured,
+            is_active: updated.is_active,
+            updated_at: updated.updated_at,
+          })
+          .eq("id", data.id);
+      } catch (err) {
+        console.warn("[Admin Full Update Product] Database update fallback to in-memory:", err);
+      }
+    }
+
+    return { ok: true, product: updated };
+  });
+
+/**
+ * Admin: Duplicate existing product
+ */
+export const adminDuplicateProduct = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => data)
+  .handler(async ({ data }) => {
+    const original = MOCK_PRODUCTS.find((p) => p.id === data.id);
+    if (!original) {
+      throw new Error("المنتج الأصلي غير موجود");
+    }
+
+    const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date().toISOString();
+
+    const duplicated: Product = {
+      ...original,
+      id: newId,
+      name: `${original.name} (نسخة مكررة)`,
+      created_at: now,
+      updated_at: now,
+    };
+
+    MOCK_PRODUCTS.unshift(duplicated);
+
+    const sb = serverClient();
+    if (sb) {
+      try {
+        await sb.from("products").insert({
+          id: duplicated.id,
+          name: duplicated.name,
+          category: duplicated.category,
+          price: duplicated.price,
+          original_price: duplicated.original_price,
+          stock: duplicated.stock,
+          image_url: duplicated.image_url,
+          description: duplicated.description,
+          is_featured: duplicated.is_featured,
+          is_active: duplicated.is_active,
+          created_at: duplicated.created_at,
+          updated_at: duplicated.updated_at,
+        });
+      } catch (err) {
+        console.warn("[Admin Duplicate Product] Database insert fallback to in-memory:", err);
+      }
+    }
+
+    return { ok: true, product: duplicated };
+  });
+
+/**
+ * Admin: Delete / Remove a product
+ */
+export const adminDeleteProduct = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => data)
+  .handler(async ({ data }) => {
+    const idx = MOCK_PRODUCTS.findIndex((p) => p.id === data.id);
+    if (idx !== -1) {
+      MOCK_PRODUCTS.splice(idx, 1);
+    }
+
+    const sb = serverClient();
+    if (sb) {
+      try {
+        await sb.from("products").delete().eq("id", data.id);
+      } catch (err) {
+        console.warn("[Admin Delete Product] Database delete fallback to in-memory:", err);
+      }
+    }
+
+    return { ok: true, id: data.id };
+  });

@@ -29,13 +29,14 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const productsQuery = queryOptions({
   queryKey: ["products", "all"],
   queryFn: () => listProducts({ data: {} }),
 });
 
-export const Route = createFileRoute("/products")({
+export const Route = createFileRoute("/products/")({
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : undefined,
     category: typeof search.category === "string" ? search.category : undefined,
@@ -85,6 +86,7 @@ function ProductsPage() {
 type SortOption = "default" | "price-asc" | "price-desc" | "discount" | "name-asc";
 
 function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: string }) {
+  const { formatPrice } = useCurrency();
   const { data: allProducts } = useSuspenseQuery(productsQuery);
 
   // States
@@ -348,7 +350,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                       الحد الأقصى للسعر
                     </h4>
                     <span className="text-xs font-bold text-primary">
-                      {priceRange.toLocaleString("ar-EG")} ج.م
+                      {formatPrice(priceRange)}
                     </span>
                   </div>
                   <Slider
@@ -360,8 +362,8 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                     className="py-3"
                   />
                   <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>5,000 ج.م</span>
-                    <span>{maxCatalogPrice.toLocaleString("ar-EG")} ج.م</span>
+                    <span>{formatPrice(5000)}</span>
+                    <span>{formatPrice(maxCatalogPrice)}</span>
                   </div>
                 </div>
 
@@ -492,8 +494,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
           {/* Desktop Price Slider Filter */}
           <div className="flex items-center gap-3 w-72">
             <span className="text-slate-500 whitespace-nowrap text-[11px] font-medium">
-              حتى:{" "}
-              <strong className="text-slate-800">{priceRange.toLocaleString("ar-EG")} ج.م</strong>
+              حتى: <strong className="text-slate-800">{formatPrice(priceRange)}</strong>
             </span>
             <Slider
               value={[priceRange]}
@@ -570,7 +571,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
 
           {priceRange < maxCatalogPrice && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-medium">
-              السعر حتى: {priceRange.toLocaleString("ar-EG")} ج.م
+              السعر حتى: {formatPrice(priceRange)}
               <button
                 type="button"
                 onClick={() => setPriceRange(maxCatalogPrice)}

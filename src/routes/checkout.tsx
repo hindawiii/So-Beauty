@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useCart } from "@/hooks/useCart";
+import { useCurrency } from "@/context/CurrencyContext";
 import { createOrder, getMyProfile } from "@/lib/orders.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
 import { SUDAN_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
+import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 import {
   CheckCircle2,
   ShoppingBag,
@@ -21,6 +24,7 @@ import {
   UserCheck,
   UserPlus,
   ArrowLeft,
+  ChevronRight,
   PackageCheck,
   MapPin,
   Clock,
@@ -43,7 +47,9 @@ type CompletedOrderInfo = {
 };
 
 function CheckoutPage() {
+  const { settings } = useStoreSettings();
   const { items, total, clear } = useCart();
+  const { formatPrice, formatBoth } = useCurrency();
   const submit = useServerFn(createOrder);
   const loadProfile = useServerFn(getMyProfile);
 
@@ -70,6 +76,8 @@ function CheckoutPage() {
   const shippingFee = getShippingFee(currentCity, total);
   const finalTotal = total + shippingFee;
   const deliveryEstimate = getDeliveryTimeEstimate(currentCity);
+
+  const { primary: finalTotalPrimary, secondary: finalTotalSecondary } = formatBoth(finalTotal);
 
   // Check auth state and load user profile if authenticated
   useEffect(() => {
@@ -188,7 +196,7 @@ function CheckoutPage() {
               </div>
               <div className="flex justify-between font-bold border-t border-border/60 pt-2 text-base">
                 <span>المبلغ الإجمالي:</span>
-                <span className="text-primary">{completedOrder.total.toFixed(2)} ج.م</span>
+                <span className="text-primary">{formatPrice(completedOrder.total)}</span>
               </div>
             </div>
 
@@ -205,25 +213,38 @@ function CheckoutPage() {
                         × {it.quantity}
                       </span>
                     </span>
-                    <span className="font-medium">{(it.price * it.quantity).toFixed(2)} ج.م</span>
+                    <span className="font-medium">{formatPrice(it.price * it.quantity)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a
+                href={`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                  `مرحباً ${settings.storeName}، قمت للتو بتأكيد الطلب رقم #${completedOrder.orderId.slice(0, 8).toUpperCase()} بقيمة ${formatPrice(completedOrder.total)}. أرجو تأكيد الشحن لعنواني: ${completedOrder.city} - ${completedOrder.shippingAddress}. شكراً!`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
+              >
+                <Button className="w-full h-11 px-6 font-semibold gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white border-none shadow-sm">
+                  <WhatsAppEmblemIcon className="w-4 h-4 fill-current" />
+                  تأكيد فوري عبر واتساب
+                </Button>
+              </a>
               <Link
                 to="/track-order"
                 search={{ q: completedOrder.orderId }}
                 className="w-full sm:w-auto"
               >
-                <Button className="w-full h-11 px-6 font-medium gap-2">
+                <Button variant="outline" className="w-full h-11 px-6 font-medium gap-2">
                   <Truck className="w-4 h-4" />
                   تتبع الشحنة الآن
                 </Button>
               </Link>
               <Link to="/products" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full h-11 px-6 font-medium gap-2">
+                <Button variant="ghost" className="w-full h-11 px-6 font-medium gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   متابعة التسوق
                 </Button>
@@ -274,11 +295,27 @@ function CheckoutPage() {
   return (
     <div className="min-h-screen flex flex-col bg-muted/20">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-5xl">
+        {/* Spacious Top Back Navigation Bar with Safe Distance */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/60">
+          <Link
+            to="/cart"
+            className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer self-start sm:self-auto"
+          >
+            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
+            <span>العودة إلى سلة التسوق</span>
+          </Link>
+          <span className="text-xs text-muted-foreground font-medium self-start sm:self-auto ps-1 sm:ps-0">
+            خطوة الدفع والتأكيد (آمن 100%)
+          </span>
+        </div>
+
         {/* Page Heading & Trust Signals */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">إتمام الطلب</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              إتمام الطلب
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               شحن سريع ومجاني للطلبات المؤكدة مع ميزة الدفع عند الاستلام
             </p>
@@ -392,7 +429,7 @@ function CheckoutPage() {
                   >
                     {SUDAN_CITIES.map((c) => (
                       <option key={c.name} value={c.name}>
-                        {c.name} {shippingFee === 0 ? "(شحن مجاني)" : `(${c.rate} ج.م)`}
+                        {c.name} {shippingFee === 0 ? "(شحن مجاني)" : `(${formatPrice(c.rate)})`}
                       </option>
                     ))}
                     <option value="other">مدينة أخرى (إدخال يدوي)</option>
@@ -464,21 +501,27 @@ function CheckoutPage() {
                   >
                     <div className="truncate">
                       <div className="font-medium text-foreground truncate">{i.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {i.quantity} × {i.price.toFixed(2)} ج.م
+                      <div className="text-xs text-muted-foreground" suppressHydrationWarning>
+                        {i.quantity} × {formatPrice(i.price)}
                       </div>
                     </div>
-                    <span className="font-semibold text-foreground shrink-0">
-                      {(i.price * i.quantity).toFixed(2)} ج.م
+                    <span
+                      suppressHydrationWarning
+                      className="font-semibold text-foreground shrink-0"
+                    >
+                      {formatPrice(i.price * i.quantity)}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-2.5 border-t border-border/60 pt-4 text-sm">
+              <div
+                className="space-y-2.5 border-t border-border/60 pt-4 text-sm"
+                suppressHydrationWarning
+              >
                 <div className="flex justify-between text-muted-foreground">
                   <span>قيمة المنتجات</span>
-                  <span>{total.toFixed(2)} ج.م</span>
+                  <span suppressHydrationWarning>{formatPrice(total)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground items-center">
                   <span>الشحن والتوصيل ({currentCity})</span>
@@ -487,14 +530,29 @@ function CheckoutPage() {
                       مجاناً 🎉
                     </span>
                   ) : (
-                    <span className="font-medium text-foreground">
-                      {shippingFee.toFixed(2)} ج.م
+                    <span className="font-medium text-foreground" suppressHydrationWarning>
+                      {formatPrice(shippingFee)}
                     </span>
                   )}
                 </div>
-                <div className="flex justify-between text-base font-bold text-foreground pt-2 border-t border-border/60">
-                  <span>الإجمالي النهائي</span>
-                  <span className="text-primary text-xl">{finalTotal.toFixed(2)} ج.م</span>
+                <div
+                  className="flex flex-col gap-1 pt-2 border-t border-border/60"
+                  suppressHydrationWarning
+                >
+                  <div className="flex justify-between items-baseline text-base font-bold text-foreground">
+                    <span>الإجمالي النهائي</span>
+                    <span className="text-primary text-xl tracking-tight" suppressHydrationWarning>
+                      {finalTotalPrimary}
+                    </span>
+                  </div>
+                  {finalTotalSecondary && (
+                    <span
+                      className="text-xs text-muted-foreground font-mono font-medium self-end"
+                      suppressHydrationWarning
+                    >
+                      {finalTotalSecondary}
+                    </span>
+                  )}
                 </div>
               </div>
 

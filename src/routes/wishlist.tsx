@@ -6,7 +6,15 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useCart } from "@/hooks/useCart";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
-import { Heart, ShoppingCart, Trash2, Sparkles, ShoppingBag, ArrowRight } from "lucide-react";
+import {
+  Heart,
+  ShoppingCart,
+  Trash2,
+  Sparkles,
+  ShoppingBag,
+  ArrowRight,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wishlist")({
@@ -43,7 +51,19 @@ function WishlistPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-6xl">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-6xl">
+        {/* Spacious Top Back Navigation Bar */}
+        <div className="mb-8 flex items-center justify-between gap-4 pb-4 border-b border-border/60">
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer"
+          >
+            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
+            <span>العودة لمتابعة التسوق</span>
+          </Link>
+          <span className="text-xs text-muted-foreground font-medium">المنتجات المحفوظة</span>
+        </div>
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, GripVertical, Send, Sparkles, Minus, CheckCircle2 } from "lucide-react";
-import { getWhatsAppChatUrl } from "@/lib/whatsapp";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { Button } from "@/components/ui/button";
 import { WhatsAppOrganicIcon, WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 
@@ -182,17 +182,19 @@ export function WhatsAppSupportButton() {
     }
   };
 
+  const { getWhatsAppUrl } = useStoreSettings();
+
   const startChat = useCallback(
     (customText?: string) => {
       const message =
         customText ||
         selectedInquiry ||
-        "مرحباً سو بيوتي 🌸، أود استشارتكم حول المنتجات الطبيعية وتفاصيل التوصيل.";
-      const url = getWhatsAppChatUrl(message);
+        "مرحباً بكِ 🌸، أود استشارتكم حول المنتجات وتفاصيل التوصيل.";
+      const url = getWhatsAppUrl(message);
       window.open(url, "_blank", "noopener,noreferrer");
       setIsExpanded(false);
     },
-    [selectedInquiry],
+    [selectedInquiry, getWhatsAppUrl],
   );
 
   // SSR Fallback (before client hydration)

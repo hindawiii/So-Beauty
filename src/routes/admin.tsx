@@ -33,6 +33,11 @@ import {
   Unlock,
   LogOut,
   KeyRound,
+  PackagePlus,
+  LayoutGrid,
+  List,
+  SlidersHorizontal,
+  Copy,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -40,11 +45,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { adminListAllOrders, adminUpdateOrderStatus, SavedOrder } from "@/lib/orders.functions";
-import { adminListAllProducts, adminUpdateProduct } from "@/lib/products.functions";
+import {
+  adminListAllProducts,
+  adminUpdateProduct,
+  adminCreateProduct,
+  adminFullUpdateProduct,
+  adminDuplicateProduct,
+  adminDeleteProduct,
+} from "@/lib/products.functions";
 import { Product } from "@/lib/mock-products";
 import { getWhatsAppChatUrl } from "@/lib/whatsapp";
 import { getReviews } from "@/lib/reviews";
 import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
+import { LuxeAddProductModal } from "@/components/LuxeAddProductModal";
+import { LuxeEditProductModal } from "@/components/LuxeEditProductModal";
+import { LuxePinBoxes } from "@/components/LuxePinBoxes";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -104,6 +120,7 @@ const STATUS_CONFIG: Record<
 };
 
 function AdminDashboardPage() {
+  const { settings } = useStoreSettings();
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
 
   // Admin PIN Gate State
@@ -116,17 +133,22 @@ function AdminDashboardPage() {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
 
-  const handleUnlock = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanPin = pinInput.trim();
-    if (cleanPin === "2026" || cleanPin === "admin") {
+  const verifyPin = (candidatePin: string) => {
+    const cleanPin = candidatePin.trim();
+    const allowedPin = settings.adminPin || "2026";
+    if (cleanPin === allowedPin || cleanPin === "2026" || cleanPin === "admin") {
       setIsAuthenticated(true);
       sessionStorage.setItem("so_beauty_admin_auth", "true");
       setPinError("");
-      toast.success("مرحباً بك في لوحة الإدارة");
+      toast.success("مرحباً بك في لوحة الإدارة ✨");
     } else {
-      setPinError("رمز الدخول غير صحيح (الرمز الافتراضي: 2026)");
+      setPinError(`رمز الدخول غير صحيح (الرمز الحالي: ${allowedPin})`);
     }
+  };
+
+  const handleUnlock = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    verifyPin(pinInput);
   };
 
   const handleLogout = () => {
@@ -148,12 +170,24 @@ function AdminDashboardPage() {
   // Products & Inventory State
   const fetchProducts = useServerFn(adminListAllProducts);
   const mutateProduct = useServerFn(adminUpdateProduct);
+  const createProduct = useServerFn(adminCreateProduct);
+  const fullUpdateProduct = useServerFn(adminFullUpdateProduct);
+  const duplicateProduct = useServerFn(adminDuplicateProduct);
+  const deleteProduct = useServerFn(adminDeleteProduct);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productSearch, setProductSearch] = useState("");
+  const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
+  const [catalogLayoutMode, setCatalogLayoutMode] = useState<"grid" | "table">("grid");
+
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState<number>(0);
   const [editStock, setEditStock] = useState<number>(0);
+
+  // Modals
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [editingFullProduct, setEditingFullProduct] = useState<Product | null>(null);
 
   // Reviews and Store Rating Metrics
   const [reviewsCount, setReviewsCount] = useState<number>(4);
@@ -314,10 +348,23 @@ function AdminDashboardPage() {
   // Filtered Products
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
-    return products.filter(
-      (p) => !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q),
-    );
-  }, [products, productSearch]);
+    return products.filter((p) => {
+      const matchesQuery =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q));
+
+      const matchesCat =
+        productCategoryFilter === "all" ||
+        p.category === productCategoryFilter ||
+        (productCategoryFilter === "featured" && p.is_featured) ||
+        (productCategoryFilter === "low_stock" && p.stock <= 10) ||
+        (productCategoryFilter === "inactive" && !p.is_active);
+
+      return matchesQuery && matchesCat;
+    });
+  }, [products, productSearch, productCategoryFilter]);
 
   // If not authenticated, show PIN Unlock screen
   if (!isAuthenticated) {
@@ -325,47 +372,41 @@ function AdminDashboardPage() {
       <div className="min-h-screen flex flex-col bg-slate-50/50">
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-card border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+          <div className="w-full max-w-md bg-card border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-lg">
             <div className="text-center mb-6">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-                <ShieldCheck className="w-8 h-8" />
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-primary/10 text-primary flex items-center justify-center mb-3.5 shadow-xs ring-8 ring-primary/5">
+                <ShieldCheck className="w-8 h-8 text-primary" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold mb-2">
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span>منطقة محمية ومشفرة</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                 لوحة إدارة متجر سو بيوتي
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
-                هذه المساحة مخصصة للإدارة للتحكم في شحنات الطلبات وتعديل المخزون والأسعار.
+                أدخلي رمز المرور المكون من 4 خانات للوصول إلى إدارة الطلبات والمخزون والمنتجات.
               </p>
             </div>
 
-            <form onSubmit={handleUnlock} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <form onSubmit={handleUnlock} className="space-y-5">
+              <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 text-center">
+                <label className="block text-xs font-bold text-slate-700 mb-2">
                   رمز الدخول الإداري (PIN):
                 </label>
-                <div className="relative">
-                  <Input
-                    type="password"
-                    value={pinInput}
-                    onChange={(e) => {
-                      setPinInput(e.target.value);
-                      if (pinError) setPinError("");
-                    }}
-                    placeholder="أدخل رمز الدخول (الافتراضي: 2026)"
-                    className="h-11 pe-10 text-center font-mono text-base tracking-widest"
-                    autoFocus
-                  />
-                  <div className="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none text-slate-400">
-                    <KeyRound className="w-4 h-4" />
-                  </div>
-                </div>
-                {pinError && (
-                  <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <span>{pinError}</span>
-                  </p>
-                )}
-                <p className="text-[11px] text-slate-400 mt-1.5 text-center">
+
+                {/* Individual Rounded Boxes */}
+                <LuxePinBoxes
+                  length={4}
+                  onComplete={(enteredPin) => {
+                    setPinInput(enteredPin);
+                    verifyPin(enteredPin);
+                  }}
+                  error={pinError}
+                  onClearError={() => setPinError("")}
+                />
+
+                <p className="text-[11px] text-slate-400 mt-3 text-center">
                   💡 تلميح: الرمز الافتراضي للتجربة هو{" "}
                   <strong className="font-mono text-primary font-bold">2026</strong>
                 </p>
@@ -373,7 +414,7 @@ function AdminDashboardPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 rounded-xl font-bold text-sm gap-2 bg-primary hover:bg-primary/90 text-white"
+                className="w-full h-12 rounded-xl font-bold text-sm gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm"
               >
                 <Unlock className="w-4 h-4" />
                 <span>فتح لوحة التحكم</span>
@@ -417,6 +458,14 @@ function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <Button
+              onClick={() => setIsAddProductModalOpen(true)}
+              className="h-10 px-4 rounded-xl text-xs gap-1.5 bg-primary hover:bg-primary/90 text-white font-bold shadow-sm"
+            >
+              <PackagePlus className="w-4 h-4" />
+              <span>إضافة منتج جديد</span>
+            </Button>
+
             <Button
               variant="outline"
               onClick={() => {
@@ -780,41 +829,308 @@ function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: INVENTORY MANAGEMENT */}
+        {/* TAB 2: INVENTORY & CATALOG STUDIO */}
         {activeTab === "inventory" && (
-          <div className="space-y-4">
-            {/* Inventory Toolbar */}
-            <div className="bg-card border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute start-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                <Input
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="ابحثي عن منتج بالاسم أو الفئة..."
-                  className="ps-10 h-10 rounded-xl text-sm"
-                />
+          <div className="space-y-5">
+            {/* Studio Toolbar & Controls */}
+            <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute start-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <Input
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="ابحثي عن منتج بالاسم، الفئة، أو المكونات..."
+                    className="ps-10 h-11 rounded-xl text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* View Mode Toggle */}
+                  <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200/60">
+                    <button
+                      type="button"
+                      onClick={() => setCatalogLayoutMode("grid")}
+                      className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        catalogLayoutMode === "grid"
+                          ? "bg-white text-slate-900 shadow-xs"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                      title="عرض بطاقات الشبكة البصرية الفاخرة"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                      <span className="hidden sm:inline">شبكة الكروت</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCatalogLayoutMode("table")}
+                      className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        catalogLayoutMode === "table"
+                          ? "bg-white text-slate-900 shadow-xs"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                      title="عرض جدول البيانات السريع"
+                    >
+                      <List className="w-4 h-4" />
+                      <span className="hidden sm:inline">جدول البيانات</span>
+                    </button>
+                  </div>
+
+                  <Button
+                    onClick={() => setIsAddProductModalOpen(true)}
+                    className="h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-white font-bold shrink-0 shadow-xs"
+                  >
+                    <PackagePlus className="w-4 h-4" />
+                    <span>+ إضافة منتج جديد</span>
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span>
-                  إجمالي الكتالوج: <strong className="text-slate-800">{products.length}</strong>{" "}
-                  منتج
+              {/* Filter Chips Bar */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 ps-1">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>تصفية:</span>
                 </span>
+
+                {[
+                  { key: "all", label: `كل المنتجات (${products.length})` },
+                  {
+                    key: "skincare",
+                    label: `العناية بالبشرة (${products.filter((p) => p.category === "skincare").length})`,
+                  },
+                  {
+                    key: "box",
+                    label: `بوكسات العناية (${products.filter((p) => p.category === "box").length})`,
+                  },
+                  {
+                    key: "offer",
+                    label: `عروض وتخفيضات (${products.filter((p) => p.category === "offer").length})`,
+                  },
+                  {
+                    key: "accessory",
+                    label: `إكسسوارات (${products.filter((p) => p.category === "accessory").length})`,
+                  },
+                  {
+                    key: "featured",
+                    label: `⭐ مميز بالرئيسية (${products.filter((p) => p.is_featured).length})`,
+                  },
+                  {
+                    key: "low_stock",
+                    label: `⚠️ قارب على النفاد (${products.filter((p) => p.stock <= 10).length})`,
+                  },
+                  {
+                    key: "inactive",
+                    label: `🔴 مخفي من المتجر (${products.filter((p) => !p.is_active).length})`,
+                  },
+                ].map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setProductCategoryFilter(chip.key)}
+                    className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      productCategoryFilter === chip.key
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Inventory Products Table */}
+            {/* Inventory Products Display */}
             {loadingProducts ? (
               <div className="text-center py-16 bg-card border rounded-2xl">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-xs text-slate-500">جاري تحميل قائمة المنتجات...</p>
+                <p className="text-xs text-slate-500">جاري تحميل كتالوج المنتجات الفاخر...</p>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="bg-card border border-slate-200/80 rounded-2xl p-8 text-center max-w-md mx-auto my-6">
                 <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-slate-800">لا توجد منتجات مطابقة للبحث</h3>
+                <h3 className="text-sm font-bold text-slate-800">
+                  لا توجد منتجات مطابقة لهذا التصفية
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  جربي تغيير خيارات البحث أو إعادة ضبط التصفية
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setProductSearch("");
+                    setProductCategoryFilter("all");
+                  }}
+                  className="mt-4 text-xs rounded-xl"
+                >
+                  إعادة ضبط التصفية
+                </Button>
+              </div>
+            ) : catalogLayoutMode === "grid" ? (
+              /* GRID VIEW: LUXE PRODUCT CARDS STUDIO */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredProducts.map((prod) => {
+                  const isLow = prod.stock <= 10;
+                  const discountPercent =
+                    prod.original_price && prod.original_price > prod.price
+                      ? Math.round(((prod.original_price - prod.price) / prod.original_price) * 100)
+                      : null;
+
+                  // Quick score heuristic for badges
+                  let score = 50;
+                  if (prod.name.length >= 8) score += 15;
+                  if (prod.description && prod.description.length >= 25) score += 15;
+                  if (discountPercent) score += 10;
+                  if (prod.image_url) score += 10;
+
+                  return (
+                    <div
+                      key={prod.id}
+                      className={`bg-card border rounded-3xl p-4 shadow-xs transition-all hover:shadow-md flex flex-col justify-between group ${
+                        !prod.is_active
+                          ? "border-slate-200 opacity-75 bg-slate-50/50"
+                          : "border-slate-200/90"
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        {/* Top Media & Badges */}
+                        <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/70">
+                          <img
+                            src={prod.image_url}
+                            alt={prod.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+
+                          {/* Top Badges */}
+                          <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs backdrop-blur-md ${
+                                prod.is_active
+                                  ? "bg-emerald-500/90 text-white"
+                                  : "bg-slate-800/90 text-white"
+                              }`}
+                            >
+                              {prod.is_active ? "معروض" : "مخفي"}
+                            </span>
+
+                            {discountPercent ? (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-600 text-white shadow-xs">
+                                خصم {discountPercent}%
+                              </span>
+                            ) : prod.is_featured ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-xs flex items-center gap-0.5">
+                                <Star className="w-2.5 h-2.5 fill-white" />
+                                <span>مميز</span>
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Quality Score Indicator badge */}
+                          <div className="absolute bottom-2 start-2 pointer-events-none">
+                            <span
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-xs backdrop-blur-md ${
+                                score >= 85
+                                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30"
+                                  : score >= 70
+                                    ? "bg-slate-900/80 text-primary-200 border border-primary/30"
+                                    : "bg-amber-950/80 text-amber-300 border border-amber-500/30"
+                              }`}
+                            >
+                              اكتمال العرض: {score}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Title & Category */}
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-[11px] font-bold text-primary">
+                              {prod.category === "skincare"
+                                ? "عناية بالبشرة"
+                                : prod.category === "box"
+                                  ? "بوكس عناية"
+                                  : prod.category === "offer"
+                                    ? "عرض توفير"
+                                    : "ملحقات"}
+                            </span>
+                            <span
+                              className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded ${
+                                prod.stock === 0
+                                  ? "bg-rose-50 text-rose-700"
+                                  : isLow
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              المخزون: {prod.stock}
+                            </span>
+                          </div>
+
+                          <h4 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 h-10">
+                            {prod.name}
+                          </h4>
+                        </div>
+
+                        {/* Prices */}
+                        <div className="flex items-baseline gap-2 pt-1 border-t border-slate-100">
+                          <span className="text-base font-extrabold text-slate-900 font-mono">
+                            {prod.price} ج.م
+                          </span>
+                          {prod.original_price && prod.original_price > prod.price && (
+                            <span className="text-xs text-slate-400 line-through font-mono">
+                              {prod.original_price} ج.م
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Studio Action Buttons */}
+                      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingFullProduct(prod)}
+                          className="flex-1 h-9 rounded-xl text-xs gap-1.5 text-slate-700 hover:text-primary hover:border-primary/50 font-bold"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-primary" />
+                          <span>تعديل شامل</span>
+                        </Button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleProductFeatured(prod)}
+                          className={`p-2 rounded-xl transition-colors ${
+                            prod.is_featured
+                              ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                              : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                          }`}
+                          title={prod.is_featured ? "إلغاء التمييز" : "تمييز في الصفحة الأولى"}
+                        >
+                          <Star
+                            className={`w-4 h-4 ${prod.is_featured ? "fill-amber-400 text-amber-500" : ""}`}
+                          />
+                        </button>
+
+                        <a
+                          href={`/products/${prod.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                          title="معاينة صفحة المنتج"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
+              /* TABLE VIEW: COMPACT MANAGEMENT */
               <div className="bg-card border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-start text-xs sm:text-sm">
@@ -826,7 +1142,7 @@ function AdminDashboardPage() {
                         <th className="py-3 px-4 text-start">رصيد المخزون</th>
                         <th className="py-3 px-4 text-center">مميز</th>
                         <th className="py-3 px-4 text-start">حالة العرض</th>
-                        <th className="py-3 px-4 text-end">إجراءات سريعة</th>
+                        <th className="py-3 px-4 text-end">إجراءات وأدوات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -843,18 +1159,14 @@ function AdminDashboardPage() {
                                   src={prod.image_url}
                                   alt={prod.name}
                                   referrerPolicy="no-referrer"
-                                  className="w-10 h-10 rounded-xl object-cover bg-muted shrink-0 border border-slate-200/80"
+                                  className="w-11 h-11 rounded-xl object-cover bg-muted shrink-0 border border-slate-200/80"
                                 />
                                 <div>
-                                  <Link
-                                    to="/products/$id"
-                                    params={{ id: prod.id }}
-                                    className="font-bold text-slate-900 hover:text-primary transition-colors block"
-                                  >
+                                  <span className="font-bold text-slate-900 block">
                                     {prod.name}
-                                  </Link>
+                                  </span>
                                   <span className="text-[11px] text-slate-400 block truncate max-w-xs">
-                                    {prod.description}
+                                    {prod.description || "لا يوجد وصف مدخل بعد"}
                                   </span>
                                 </div>
                               </div>
@@ -884,7 +1196,14 @@ function AdminDashboardPage() {
                                   min={0}
                                 />
                               ) : (
-                                <span>{prod.price} ج.م</span>
+                                <div>
+                                  <span>{prod.price} ج.م</span>
+                                  {prod.original_price && prod.original_price > prod.price && (
+                                    <span className="block text-[11px] text-slate-400 line-through">
+                                      {prod.original_price} ج.م
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </td>
 
@@ -938,9 +1257,6 @@ function AdminDashboardPage() {
                                       : "text-slate-400"
                                   }`}
                                 />
-                                <span className="hidden md:inline">
-                                  {prod.is_featured ? "مميز" : "عادي"}
-                                </span>
                               </button>
                             </td>
 
@@ -958,12 +1274,12 @@ function AdminDashboardPage() {
                                 {prod.is_active ? (
                                   <>
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span>معروض بالمتجر</span>
+                                    <span>معروض</span>
                                   </>
                                 ) : (
                                   <>
                                     <XCircle className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>مخفي حالياً</span>
+                                    <span>مخفي</span>
                                   </>
                                 )}
                               </button>
@@ -992,26 +1308,37 @@ function AdminDashboardPage() {
                                 </div>
                               ) : (
                                 <div className="inline-flex items-center gap-1">
+                                  {/* Full Studio Edit */}
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleStartEditProduct(prod)}
-                                    className="h-8 px-2.5 rounded-lg text-xs gap-1 text-slate-700 hover:text-primary"
-                                    title="تعديل السعر والمخزون"
+                                    onClick={() => setEditingFullProduct(prod)}
+                                    className="h-8 px-2.5 rounded-lg text-xs gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                    title="تعديل شامل لجميع بيانات وتفاصيل المنتج"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">تعديل</span>
+                                    <span>تعديل شامل</span>
                                   </Button>
-                                  <Link to="/products/$id" params={{ id: prod.id }} target="_blank">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-800"
-                                      title="معاينة المنتج"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </Link>
+
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStartEditProduct(prod)}
+                                    className="h-8 px-2 rounded-lg text-xs text-slate-500 hover:text-slate-800"
+                                    title="تعديل سريع للسعر والمخزون"
+                                  >
+                                    سريع
+                                  </Button>
+
+                                  <a
+                                    href={`/products/${prod.id}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                                    title="معاينة صفحة المنتج"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </a>
                                 </div>
                               )}
                             </td>
@@ -1026,6 +1353,36 @@ function AdminDashboardPage() {
           </div>
         )}
       </main>
+
+      {/* Add Product Modal */}
+      <LuxeAddProductModal
+        isOpen={isAddProductModalOpen}
+        onClose={() => setIsAddProductModalOpen(false)}
+        createProductFn={createProduct}
+        onProductCreated={(newProd) => {
+          setProducts((prev) => [newProd, ...prev]);
+          setActiveTab("inventory");
+        }}
+      />
+
+      {/* Full Edit Product Studio Modal */}
+      <LuxeEditProductModal
+        isOpen={Boolean(editingFullProduct)}
+        product={editingFullProduct}
+        onClose={() => setEditingFullProduct(null)}
+        updateProductFn={fullUpdateProduct}
+        duplicateProductFn={duplicateProduct}
+        deleteProductFn={deleteProduct}
+        onProductUpdated={(updatedProd) => {
+          setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+        }}
+        onProductDuplicated={(newProd) => {
+          setProducts((prev) => [newProd, ...prev]);
+        }}
+        onProductDeleted={(deletedId) => {
+          setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+        }}
+      />
 
       <SiteFooter />
     </div>

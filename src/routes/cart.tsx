@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useCart } from "@/hooks/useCart";
+import { useCurrency } from "@/context/CurrencyContext";
 import { resolveProductImage } from "@/lib/product-images";
 import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
 import { SUDAN_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
@@ -13,6 +14,7 @@ import {
   Plus,
   ShoppingBag,
   ArrowRight,
+  ChevronRight,
   ShieldCheck,
   Truck,
   Sparkles,
@@ -37,6 +39,7 @@ export const Route = createFileRoute("/cart")({
 
 function CartPage() {
   const { items, setQty, remove, clear, total } = useCart();
+  const { formatPrice, formatBoth } = useCurrency();
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
   const [selectedCity, setSelectedCity] = useState("أم درمان");
@@ -57,14 +60,30 @@ function CartPage() {
   const finalTotal = total + shippingFee;
   const deliveryEstimate = getDeliveryTimeEstimate(selectedCity);
 
+  const { primary: finalTotalPrimary, secondary: finalTotalSecondary } = formatBoth(finalTotal);
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-5xl">
-        {/* Header Title & Breadcrumb */}
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-5xl">
+        {/* Spacious Top Back Navigation Bar with Safe Distance */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/60">
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer self-start sm:self-auto"
+          >
+            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
+            <span>العودة لمتابعة التسوق</span>
+          </Link>
+          <span className="text-xs text-muted-foreground font-medium self-start sm:self-auto ps-1 sm:ps-0">
+            سلة التسوق الآمنة
+          </span>
+        </div>
+
+        {/* Header Title */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100">
               سلة التسوق
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -182,7 +201,7 @@ function CartPage() {
                       </Link>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-primary font-bold text-sm">
-                          {Number(it.price).toFixed(2)} ج.م
+                          {formatPrice(Number(it.price))}
                         </span>
                         <span className="text-xs text-slate-400">للقطعة</span>
                       </div>
@@ -212,8 +231,11 @@ function CartPage() {
                         </div>
 
                         <div className="flex items-center gap-4">
-                          <span className="font-bold text-slate-900 text-sm sm:text-base">
-                            {(Number(it.price) * it.quantity).toFixed(2)} ج.م
+                          <span
+                            suppressHydrationWarning
+                            className="font-bold text-slate-900 text-sm sm:text-base"
+                          >
+                            {formatPrice(Number(it.price) * it.quantity)}
                           </span>
                           <button
                             type="button"
@@ -221,7 +243,7 @@ function CartPage() {
                               remove(it.id);
                               toast.info(`تم حذف "${it.name}" من السلة`);
                             }}
-                            className="p-2 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                             aria-label="حذف المنتج"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -252,7 +274,7 @@ function CartPage() {
 
             {/* Right Column: Order Summary & City Estimator */}
             <div className="bg-card border border-slate-200/80 rounded-3xl p-6 shadow-xs sticky top-24 space-y-5">
-              <h2 className="font-bold text-lg text-slate-900 border-b border-slate-100 pb-3">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
                 ملخص السلة
               </h2>
 
@@ -269,11 +291,11 @@ function CartPage() {
                   id="cart-shipping-city"
                   value={selectedCity}
                   onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full h-11 px-3 bg-background border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-11 px-3 bg-background border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   {SUDAN_CITIES.map((c) => (
                     <option key={c.name} value={c.name}>
-                      {c.name} ({c.rate} ج.م)
+                      {c.name} ({formatPrice(c.rate)})
                     </option>
                   ))}
                 </select>
@@ -284,26 +306,54 @@ function CartPage() {
               </div>
 
               {/* Price Breakdown */}
-              <div className="space-y-2.5 text-sm pt-2 border-t border-slate-100">
-                <div className="flex justify-between text-slate-600">
+              <div
+                className="space-y-2.5 text-sm pt-2 border-t border-slate-100 dark:border-slate-800"
+                suppressHydrationWarning
+              >
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>مجموع المنتجات:</span>
-                  <span className="font-medium text-slate-900">{total.toFixed(2)} ج.م</span>
+                  <span
+                    className="font-medium text-slate-900 dark:text-slate-100"
+                    suppressHydrationWarning
+                  >
+                    {formatPrice(total)}
+                  </span>
                 </div>
 
-                <div className="flex justify-between text-slate-600 items-center">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 items-center">
                   <span>تكلفة الشحن:</span>
                   {shippingFee === 0 ? (
                     <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs font-bold">
                       مجاناً 🎉
                     </span>
                   ) : (
-                    <span className="font-medium text-slate-900">{shippingFee.toFixed(2)} ج.م</span>
+                    <span
+                      className="font-medium text-slate-900 dark:text-slate-100"
+                      suppressHydrationWarning
+                    >
+                      {formatPrice(shippingFee)}
+                    </span>
                   )}
                 </div>
 
-                <div className="flex justify-between font-bold text-base text-slate-900 pt-3 border-t border-slate-100">
-                  <span>المجموع الكلي:</span>
-                  <span className="text-primary text-xl">{finalTotal.toFixed(2)} ج.م</span>
+                <div
+                  className="flex flex-col gap-1 pt-3 border-t border-slate-100 dark:border-slate-800"
+                  suppressHydrationWarning
+                >
+                  <div className="flex justify-between items-baseline font-bold text-base text-slate-900 dark:text-slate-100">
+                    <span>المجموع الكلي:</span>
+                    <span className="text-primary text-xl tracking-tight" suppressHydrationWarning>
+                      {finalTotalPrimary}
+                    </span>
+                  </div>
+                  {finalTotalSecondary && (
+                    <span
+                      className="text-xs text-muted-foreground font-mono font-medium self-end"
+                      suppressHydrationWarning
+                    >
+                      {finalTotalSecondary}
+                    </span>
+                  )}
                 </div>
               </div>
 

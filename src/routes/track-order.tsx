@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
+import { useCurrency } from "@/context/CurrencyContext";
 import {
   PackageCheck,
   Search,
@@ -15,6 +16,7 @@ import {
   Calendar,
   Sparkles,
   ArrowRight,
+  ChevronRight,
   ShieldCheck,
   RefreshCw,
   X,
@@ -137,7 +139,21 @@ function TrackOrderPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 py-8 md:py-14 max-w-4xl">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-4xl">
+        {/* Spacious Top Back Navigation Bar */}
+        <div className="mb-8 flex items-center justify-between gap-4 pb-4 border-b border-border/60">
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer"
+          >
+            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
+            <span>العودة لمتجر المنتجات</span>
+          </Link>
+          <span className="text-xs text-muted-foreground font-medium">
+            مركز تتبع الشحنات والطلبات
+          </span>
+        </div>
+
         {/* Header Hero */}
         <div className="text-center max-w-xl mx-auto mb-8">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 shadow-xs">
@@ -307,6 +323,7 @@ function TrackOrderPage() {
 }
 
 function OrderTrackingCard({ order }: { order: OrderResult }) {
+  const { formatPrice, formatBoth } = useCurrency();
   const [copied, setCopied] = useState(false);
 
   const steps = [
@@ -364,7 +381,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
 رقم الطلب: #${formattedOrderId}
 الاسم: ${order.full_name}
 المدينة: ${order.city}
-الإجمالي: ${Number(order.total).toFixed(2)} ج.م
+الإجمالي: ${formatPrice(Number(order.total))}
 الحالة الحالية: ${
     order.status === "pending"
       ? "قيد المراجعة"
@@ -530,8 +547,8 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
 
         <div className="space-y-1.5 sm:text-end sm:border-s sm:border-slate-200 sm:ps-4 flex flex-col justify-center">
           <div className="text-slate-500 text-xs">طريقة السداد: الدفع نقداً عند الاستلام (COD)</div>
-          <div className="text-base sm:text-lg font-bold text-primary">
-            المجموع الكلي: {Number(order.total).toFixed(2)} ج.م
+          <div className="text-base sm:text-lg font-bold text-primary" suppressHydrationWarning>
+            المجموع الكلي: {formatPrice(Number(order.total))}
           </div>
         </div>
       </div>
@@ -552,8 +569,8 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
                   {item.product_name}{" "}
                   <span className="text-primary font-bold ms-1">× {item.quantity}</span>
                 </span>
-                <span className="font-semibold text-slate-900">
-                  {(Number(item.unit_price) * item.quantity).toFixed(2)} ج.م
+                <span className="font-semibold text-slate-900" suppressHydrationWarning>
+                  {formatPrice(Number(item.unit_price) * item.quantity)}
                 </span>
               </div>
             ))}

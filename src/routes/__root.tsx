@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
+import { CurrencyProvider } from "@/context/CurrencyContext";
+import { StoreSettingsProvider } from "@/context/StoreSettingsContext";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -141,9 +143,13 @@ function RootComponent() {
   }, [router, queryClient]);
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <WhatsAppSupportButton />
-      <Toaster position="top-center" richColors />
+      <StoreSettingsProvider>
+        <CurrencyProvider>
+          <Outlet />
+          <WhatsAppSupportButton />
+          <Toaster position="top-center" richColors />
+        </CurrencyProvider>
+      </StoreSettingsProvider>
     </QueryClientProvider>
   );
 }

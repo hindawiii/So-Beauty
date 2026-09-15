@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { listMyOrders } from "@/lib/orders.functions";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({ meta: [{ title: "طلباتي — So Beauty" }] }),
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/orders")({
 type Order = Awaited<ReturnType<typeof listMyOrders>>[number];
 
 function OrdersPage() {
+  const { formatPrice } = useCurrency();
   const load = useServerFn(listMyOrders);
   const [orders, setOrders] = useState<Order[] | null>(null);
   useEffect(() => {
@@ -45,11 +47,11 @@ function OrdersPage() {
                   {o.order_items?.map((i) => (
                     <li key={i.id}>
                       {i.product_name} × {i.quantity} —{" "}
-                      {(Number(i.unit_price) * i.quantity).toFixed(2)} ج.م
+                      {formatPrice(Number(i.unit_price) * i.quantity)}
                     </li>
                   ))}
                 </ul>
-                <div className="font-bold">الإجمالي: {Number(o.total).toFixed(2)} ج.م</div>
+                <div className="font-bold">الإجمالي: {formatPrice(Number(o.total))}</div>
               </div>
             ))}
           </div>
