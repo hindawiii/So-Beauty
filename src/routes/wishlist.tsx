@@ -20,10 +20,10 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/wishlist")({
   head: () => ({
     meta: [
-      { title: "قائمة المفضلة — So Beauty" },
+      { title: "قائمة المفضلة — المنتجات المحفوظة" },
       {
         name: "description",
-        content: "استعرضي منتجاتكِ وبوكسات العناية المفضلة التي قمتِ بحفظها للتسوق والشراء لاحقاً.",
+        content: "استعرض منتجاتك المفضلة التي قمت بحفظها للتسوق والشراء لاحقاً بكل سهولة.",
       },
     ],
   }),

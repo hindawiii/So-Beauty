@@ -12,6 +12,9 @@ import {
   HelpCircle,
   Eye,
   Info,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +23,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import type { Product } from "@/lib/mock-products";
 import { ProductQualityAdvisor } from "@/components/ProductQualityAdvisor";
+import { resolveProductImage } from "@/lib/product-images";
 
 type ProductCategory = Database["public"]["Enums"]["product_category"];
 
@@ -30,6 +34,7 @@ export interface CreateProductPayload {
   original_price?: number | null;
   stock: number;
   image_url?: string;
+  gallery_images?: string[];
   description?: string;
   is_featured?: boolean;
   is_active?: boolean;
@@ -99,6 +104,11 @@ export function LuxeAddProductModal({
   const [description, setDescription] = useState("");
   const [isFeatured, setIsFeatured] = useState<boolean>(true);
 
+  // Multi-angle gallery state (Optional for merchant)
+  const [enableGallery, setEnableGallery] = useState<boolean>(false);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [newAngleUrl, setNewAngleUrl] = useState<string>("");
+
   // Detailed fields
   const [howToUse, setHowToUse] = useState("");
   const [keyIngredients, setKeyIngredients] = useState("");
@@ -114,6 +124,19 @@ export function LuxeAddProductModal({
     numericOriginal && numericOriginal > numericPrice && numericPrice > 0
       ? Math.round(((numericOriginal - numericPrice) / numericOriginal) * 100)
       : null;
+
+  const handleAddAngle = () => {
+    if (!newAngleUrl.trim()) return;
+    const url = newAngleUrl.trim();
+    if (!galleryUrls.includes(url)) {
+      setGalleryUrls((prev) => [...prev, url]);
+    }
+    setNewAngleUrl("");
+  };
+
+  const handleRemoveAngle = (indexToRemove: number) => {
+    setGalleryUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +172,13 @@ export function LuxeAddProductModal({
         }
       }
 
+      // Compile gallery images if enabled: Primary image first, followed by extra angles
+      const primaryClean = imageUrl.trim() || "/src/assets/product-1.jpg";
+      const compiledGallery: string[] | undefined =
+        enableGallery && galleryUrls.length > 0
+          ? [primaryClean, ...galleryUrls.filter((u) => u !== primaryClean)]
+          : undefined;
+
       const res = await createProductFn({
         data: {
           name: name.trim(),
@@ -156,7 +186,8 @@ export function LuxeAddProductModal({
           price: numericPrice,
           original_price: numericOriginal,
           stock: Math.max(0, Number(stock) || 0),
-          image_url: imageUrl.trim() || "/src/assets/product-1.jpg",
+          image_url: primaryClean,
+          gallery_images: compiledGallery,
           description: fullDescription || "منتج عناية وتجميل فائق الجودة من متجر سو بيوتي.",
           is_featured: isFeatured,
           is_active: true,
@@ -432,6 +463,137 @@ export function LuxeAddProductModal({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Multi-angle Gallery Options (Completely optional for merchant) */}
+              <div className="p-3.5 rounded-2xl border border-border/80 bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-foreground block">
+                        تفعيل معرض الزوايا المتعددة للمنتج (اختياري)
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        إذا لم يتم تفعيله، سيظهر المنتج بصورته الأساسية فقط بدون أي أسهم أو تشتيت
+                      </span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableGallery}
+                      onChange={(e) => setEnableGallery(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-primary" />
+                  </label>
+                </div>
+
+                {enableGallery && (
+                  <div className="pt-2 border-t border-border/60 space-y-3 animate-in fade-in duration-200">
+                    <div className="flex gap-2">
+                      <Input
+                        value={newAngleUrl}
+                        onChange={(e) => setNewAngleUrl(e.target.value)}
+                        placeholder="أدخل رابط زاوية إضافية (قوام المنتج، العبوة الخلفية...)"
+                        className="h-10 text-xs font-mono flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddAngle();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAddAngle}
+                        className="h-10 px-3 shrink-0 gap-1 text-xs font-bold"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إضافة زاوية</span>
+                      </Button>
+                    </div>
+
+                    {/* Presets for angles */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto text-[10px] text-muted-foreground pb-1">
+                      <span className="shrink-0">اقتراحات سريعة:</span>
+                      {DEFAULT_SAMPLE_IMAGES.map((sample, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            if (!galleryUrls.includes(sample.url)) {
+                              setGalleryUrls((prev) => [...prev, sample.url]);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded border border-border/60 bg-background hover:border-primary shrink-0 transition-colors"
+                        >
+                          + {sample.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Gallery Thumbnails List */}
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                        <span>الزوايا المحددة للمنتج ({1 + galleryUrls.length} صور)</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          الصورة 1 هي الصورة الأساسية تلقائياً
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        {/* Primary Image Preview */}
+                        <div className="relative p-1.5 rounded-xl border border-primary/40 bg-primary/5 flex items-center gap-2">
+                          <img
+                            src={resolveProductImage(imageUrl || "/src/assets/product-1.jpg")}
+                            alt="الزاوية الأساسية"
+                            className="w-9 h-9 rounded-lg object-cover shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-bold text-primary block truncate">
+                              الأساسية
+                            </span>
+                            <span className="text-[9px] text-muted-foreground block">
+                              الواجهة الرئيسية
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Extra Angles */}
+                        {galleryUrls.map((angleUrl, idx) => (
+                          <div
+                            key={idx}
+                            className="relative p-1.5 rounded-xl border border-border/70 bg-card flex items-center gap-2 group"
+                          >
+                            <img
+                              src={resolveProductImage(angleUrl)}
+                              alt={`زاوية ${idx + 2}`}
+                              className="w-9 h-9 rounded-lg object-cover shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-bold text-foreground block truncate">
+                                زاوية {idx + 2}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAngle(idx)}
+                              className="w-6 h-6 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 dark:hover:bg-rose-950/40 flex items-center justify-center shrink-0 transition-colors"
+                              title="حذف الزاوية"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

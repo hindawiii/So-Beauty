@@ -1,6 +1,8 @@
 import type { Database } from "@/integrations/supabase/types";
 
-export type Product = Database["public"]["Tables"]["products"]["Row"];
+export type Product = Database["public"]["Tables"]["products"]["Row"] & {
+  gallery_images?: string[] | null;
+};
 
 export const MOCK_PRODUCTS: Product[] = [
   {
@@ -161,7 +163,19 @@ export function atomicDecrementMockStock(
  */
 export function updateMockProduct(
   productId: string,
-  patch: Partial<Pick<Product, "stock" | "price" | "original_price" | "is_active" | "is_featured">>,
+  patch: Partial<
+    Pick<
+      Product,
+      | "stock"
+      | "price"
+      | "original_price"
+      | "is_active"
+      | "is_featured"
+      | "image_url"
+      | "description"
+      | "gallery_images"
+    >
+  >,
 ): Product | null {
   const product = MOCK_PRODUCTS.find((p) => p.id === productId);
   if (!product) return null;
@@ -171,6 +185,9 @@ export function updateMockProduct(
   if (patch.original_price !== undefined) product.original_price = patch.original_price;
   if (patch.is_active !== undefined) product.is_active = patch.is_active;
   if (patch.is_featured !== undefined) product.is_featured = patch.is_featured;
+  if (patch.image_url !== undefined) product.image_url = patch.image_url;
+  if (patch.description !== undefined) product.description = patch.description;
+  if (patch.gallery_images !== undefined) product.gallery_images = patch.gallery_images;
   product.updated_at = new Date().toISOString();
 
   return { ...product };

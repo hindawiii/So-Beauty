@@ -8,6 +8,7 @@ import {
   Lock,
   Code2,
   Sparkles,
+  Flame,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -15,6 +16,7 @@ import { LuxePinBoxes } from "@/components/LuxePinBoxes";
 import { StoreSettingsTab } from "@/components/StoreSettingsTab";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
 export const Route = createFileRoute("/developer")({
   head: () => ({
@@ -30,6 +32,7 @@ export const Route = createFileRoute("/developer")({
 const MASTER_DEV_PINS = ["998877", "dev2026", "202600"];
 
 function DeveloperDashboardPage() {
+  const { settings, updateSettings } = useStoreSettings();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return sessionStorage.getItem("so_beauty_developer_auth") === "true";
@@ -39,6 +42,53 @@ function DeveloperDashboardPage() {
 
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
+
+  // Check if developer portal has been destroyed / locked by the developer
+  if (settings.developerPortalLocked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 font-sans text-center">
+        <div className="max-w-md">
+          <h1 className="text-7xl font-extrabold text-foreground tracking-tight">404</h1>
+          <h2 className="mt-4 text-xl font-semibold text-foreground">الصفحة غير موجودة</h2>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            عذراً، الصفحة التي تبحث عنها غير متوفرة، أو ربما تم نقلها أو حذفها نهائياً.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+            >
+              العودة للرئيسية
+            </Link>
+            <Link
+              to="/products"
+              className="inline-flex items-center justify-center rounded-xl border border-input bg-background px-4 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              تصفح المنتجات
+            </Link>
+          </div>
+
+          {/* Invisible / Discrete Emergency Unlock Trigger for the owner */}
+          <div className="mt-12">
+            <button
+              type="button"
+              onClick={() => {
+                const master = prompt("Enter Master Authorization Code:");
+                if (master === "998877" || master === "dev2026") {
+                  updateSettings({ developerPortalLocked: false });
+                  toast.success("تم استعادة مسار المطور بنجاح 🛡️");
+                }
+              }}
+              className="text-[10px] text-muted-foreground/20 hover:text-muted-foreground/60 transition-colors select-none cursor-default"
+              title="System verification"
+            >
+              •
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const verifyMasterPin = (candidatePin: string) => {
     const cleanPin = candidatePin.trim();

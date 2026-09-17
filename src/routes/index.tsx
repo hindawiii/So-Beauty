@@ -25,6 +25,7 @@ import { listProducts } from "@/lib/products.functions";
 import { Button } from "@/components/ui/button";
 import { AddReviewDialog } from "@/components/AddReviewDialog";
 import { getReviews, Review, INITIAL_REVIEWS } from "@/lib/reviews";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
 const featuredQuery = queryOptions({
   queryKey: ["products", "featured"],
@@ -34,8 +35,8 @@ const featuredQuery = queryOptions({
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "So Beauty — العناية الطبيعية بالبشرة" },
-      { name: "description", content: "منتجات عناية طبيعية للبشرة مستوحاة من نقاء الطبيعة." },
+      { title: "المتجر الإلكتروني — تسوق بأمان وجودة أصلية" },
+      { name: "description", content: "تسوق أفضل المنتجات الأصلية مع شحن سريع ودفع عند الاستلام." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(featuredQuery),
@@ -44,132 +45,186 @@ export const Route = createFileRoute("/")({
   notFoundComponent: () => <div className="p-8">غير موجود</div>,
 });
 
-const features = [
-  { icon: Sparkles, title: "نتائج فعّالة", desc: "منتجات مصنوعة بعناية لأفضل النتائج." },
-  { icon: Truck, title: "شحن سريع", desc: "توصيل طلبك في أسرع وقت." },
-  { icon: CreditCard, title: "دفع آمن", desc: "ادفع عند الاستلام أو أونلاين." },
-  { icon: ShieldCheck, title: "أصلية 100%", desc: "نضمن جودة وأصالة كل منتج." },
-];
-
 function Index() {
+  const { settings } = useStoreSettings();
+
+  const heroTitle = settings.heroTitle || "جمالكِ الطبيعي يبدأ من هنا";
+  const heroSubtitle =
+    settings.heroSubtitle ||
+    `اكتشف تشكيلة ${settings.storeName} من أفضل المنتجات الأصلية بجودة معتمدة وخدمة سريعة.`;
+  const heroImage = settings.heroImageUrl || heroProducts;
+
+  const features = [
+    {
+      icon: Sparkles,
+      title: settings.feature1Title || "نتائج فعّالة",
+      desc: settings.feature1Desc || "منتجات مصنوعة بعناية لأفضل النتائج.",
+    },
+    {
+      icon: Truck,
+      title: settings.feature2Title || "شحن سريع",
+      desc: settings.feature2Desc || "توصيل طلبك في أسرع وقت.",
+    },
+    {
+      icon: CreditCard,
+      title: settings.feature3Title || "دفع آمن",
+      desc: settings.feature3Desc || "ادفع عند الاستلام أو أونلاين.",
+    },
+    {
+      icon: ShieldCheck,
+      title: settings.feature4Title || "أصلية 100%",
+      desc: settings.feature4Desc || "نضمن جودة وأصالة كل منتج.",
+    },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
       <main className="flex-1">
-        <section className="bg-primary/5 py-12 md:py-20">
+        {/* Dynamic Hero Section */}
+        <section className="bg-primary/5 py-12 md:py-20 transition-colors">
           <div className="container mx-auto px-4 grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <h1 className="text-3xl md:text-5xl font-bold text-primary mb-4 leading-tight">
-                جمالكِ الطبيعي يبدأ من هنا
+              <h1
+                className="text-3xl md:text-5xl font-bold text-primary mb-4 leading-tight"
+                style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
+              >
+                {heroTitle}
               </h1>
               <p className="text-base md:text-lg text-muted-foreground mb-6 leading-relaxed">
-                اكتشفي مجموعة{" "}
-                <span
-                  className="font-semibold text-primary"
-                  style={{ fontFamily: "var(--font-latin)" }}
-                >
-                  So Beauty
-                </span>{" "}
-                من منتجات العناية الطبيعية بالبشرة — نقاء نباتي وإشراقة تدوم.
+                {heroSubtitle}
               </p>
               <div className="flex gap-3 flex-wrap">
                 <Link to="/products">
-                  <Button size="lg">تسوّق الآن</Button>
+                  <Button size="lg" className="shadow-sm">
+                    {settings.heroPrimaryCtaText || "تسوّق الآن"}
+                  </Button>
                 </Link>
                 <Link to="/offers">
                   <Button size="lg" variant="outline">
-                    شاهد العروض
+                    {settings.heroSecondaryCtaText || "شاهد العروض"}
                   </Button>
                 </Link>
               </div>
             </div>
-            <img src={heroProducts} alt="So Beauty products" className="rounded-3xl w-full" />
+            <div className="overflow-hidden rounded-3xl shadow-lg border border-slate-200/60 bg-white">
+              <img
+                src={heroImage}
+                alt={settings.storeName}
+                className="w-full h-auto max-h-[460px] object-cover hover:scale-102 transition-transform duration-500"
+              />
+            </div>
           </div>
         </section>
 
+        {/* 4 Trust Badges */}
         <section className="container mx-auto px-4 py-12 grid grid-cols-2 md:grid-cols-4 gap-6">
           {features.map((f) => (
-            <div key={f.title} className="text-center p-4">
+            <div
+              key={f.title}
+              className="text-center p-4 rounded-2xl hover:bg-slate-50 transition-colors"
+            >
               <f.icon className="w-10 h-10 mx-auto text-primary mb-3" />
-              <h3 className="font-bold mb-1">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
+              <h3 className="font-bold mb-1 text-slate-900 text-sm md:text-base">{f.title}</h3>
+              <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </section>
 
+        {/* Featured Products */}
         <section className="container mx-auto px-4 py-12">
           <div className="flex justify-between items-baseline mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">منتجاتنا</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">منتجاتنا المميزة</h2>
             <Link to="/products" className="text-primary font-semibold flex items-center gap-1">
               عرض الكل <ArrowLeft className="w-4 h-4" />
             </Link>
           </div>
-          <Suspense fallback={<div>...</div>}>
+          <Suspense
+            fallback={<div className="py-8 text-center text-slate-400">جاري تحميل المنتجات...</div>}
+          >
             <FeaturedProducts />
           </Suspense>
         </section>
 
-        <section className="container mx-auto px-4 py-12 grid md:grid-cols-2 gap-8 items-center bg-primary/5 rounded-3xl">
-          <img src={natural} alt="مجموعة طبيعية" className="rounded-2xl w-full" />
+        {/* Promo Banner Section */}
+        <section className="container mx-auto px-4 py-12 grid md:grid-cols-2 gap-8 items-center bg-primary/5 rounded-3xl border border-primary/10">
+          <img
+            src={settings.promoImageUrl || natural}
+            alt={settings.promoTitle || "عروض المتجر"}
+            className="rounded-2xl w-full max-h-[360px] object-cover shadow-sm"
+          />
           <div>
-            <h2 className="text-3xl font-bold mb-3 text-primary">Natural Bloom</h2>
-            <p className="text-muted-foreground mb-4">
-              مكوّنات نباتية 100% مستخلصة بعناية لتمنحك بشرة نضرة وصحية.
+            <h2
+              className="text-3xl font-bold mb-3 text-primary"
+              style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
+            >
+              {settings.promoTitle || "عروض حصرية"}
+            </h2>
+            <p className="text-muted-foreground mb-6 leading-relaxed">
+              {settings.promoSubtitle ||
+                "منتجات مختارة بعناية فائقة لتمنحك أفضل تجربة وقيمة استثنائية."}
             </p>
             <Link to="/boxes">
-              <Button>اكتشف البوكسات</Button>
+              <Button size="lg">{settings.promoCtaText || "اكتشف العروض"}</Button>
             </Link>
           </div>
         </section>
 
-        <section className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">اختاري بشرتك</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { img: skinHydrated, label: "بشرة مرطبة", tone: "oklch(0.25 0.05 240)" },
-              { img: skinBalanced, label: "بشرة موحّدة", tone: "oklch(0.22 0.08 150)" },
-              { img: skinFirm, label: "بشرة مشدودة", tone: "oklch(0.28 0.08 300)" },
-              { img: skinGlow, label: "بشرة مشرقة", tone: "oklch(0.35 0.15 25)" },
-            ].map((c) => (
-              <Link
-                key={c.label}
-                to="/products"
-                className="group relative rounded-2xl overflow-hidden aspect-[4/5] block shadow-md hover:shadow-xl transition-shadow"
-              >
-                <img
-                  src={c.img}
-                  alt={c.label}
-                  loading="lazy"
-                  width={1024}
-                  height={1024}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div
-                  className="absolute bottom-0 inset-x-0 py-3 px-4 text-white text-center font-bold text-sm md:text-base"
-                  style={{ background: c.tone }}
+        {/* Optional Skin Types Section (Only when showSkinTypesSection !== false) */}
+        {settings.showSkinTypesSection !== false && (
+          <section className="container mx-auto px-4 py-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">اختاري بشرتك</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { img: skinHydrated, label: "بشرة مرطبة", tone: "oklch(0.25 0.05 240)" },
+                { img: skinBalanced, label: "بشرة موحّدة", tone: "oklch(0.22 0.08 150)" },
+                { img: skinFirm, label: "بشرة مشدودة", tone: "oklch(0.28 0.08 300)" },
+                { img: skinGlow, label: "بشرة مشرقة", tone: "oklch(0.35 0.15 25)" },
+              ].map((c) => (
+                <Link
+                  key={c.label}
+                  to="/products"
+                  className="group relative rounded-2xl overflow-hidden aspect-[4/5] block shadow-md hover:shadow-xl transition-shadow"
                 >
-                  {c.label}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">قبل وبعد</h2>
-          <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
-            <div>
-              <img src={beforeImg} alt="قبل" className="rounded-2xl w-full" />
-              <p className="text-center mt-2 font-bold">قبل</p>
+                  <img
+                    src={c.img}
+                    alt={c.label}
+                    loading="lazy"
+                    width={1024}
+                    height={1024}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div
+                    className="absolute bottom-0 inset-x-0 py-3 px-4 text-white text-center font-bold text-sm md:text-base"
+                    style={{ background: c.tone }}
+                  >
+                    {c.label}
+                  </div>
+                </Link>
+              ))}
             </div>
-            <div>
-              <img src={afterImg} alt="بعد" className="rounded-2xl w-full" />
-              <p className="text-center mt-2 font-bold">بعد</p>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        <CustomerReviewsSection />
+        {/* Optional Before & After Section (Only when showBeforeAfterSection !== false) */}
+        {settings.showBeforeAfterSection !== false && (
+          <section className="container mx-auto px-4 py-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">قبل وبعد</h2>
+            <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+              <div>
+                <img src={beforeImg} alt="قبل" className="rounded-2xl w-full shadow-sm" />
+                <p className="text-center mt-2 font-bold text-slate-700">قبل</p>
+              </div>
+              <div>
+                <img src={afterImg} alt="بعد" className="rounded-2xl w-full shadow-sm" />
+                <p className="text-center mt-2 font-bold text-slate-700">بعد</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Customer Reviews Section */}
+        {settings.showCustomerReviews !== false && <CustomerReviewsSection />}
       </main>
       <SiteFooter />
     </div>

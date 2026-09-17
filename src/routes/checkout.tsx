@@ -13,9 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
-import { SUDAN_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
+import { REGIONAL_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
+import { formatOrderWhatsAppSummary } from "@/lib/whatsapp";
 import {
   CheckCircle2,
   ShoppingBag,
@@ -28,10 +29,12 @@ import {
   PackageCheck,
   MapPin,
   Clock,
+  Copy,
+  Check,
 } from "lucide-react";
 
 export const Route = createFileRoute("/checkout")({
-  head: () => ({ meta: [{ title: "إتمام الشراء — So Beauty" }] }),
+  head: () => ({ meta: [{ title: "إتمام الشراء — تأكيد الطلب الآمن" }] }),
   component: CheckoutPage,
 });
 
@@ -42,6 +45,7 @@ type CompletedOrderInfo = {
   phone: string;
   city: string;
   shippingAddress: string;
+  notes?: string;
   items: { id: string; name: string; quantity: number; price: number }[];
   isGuest: boolean;
 };
@@ -49,15 +53,18 @@ type CompletedOrderInfo = {
 function CheckoutPage() {
   const { settings } = useStoreSettings();
   const { items, total, clear } = useCart();
-  const { formatPrice, formatBoth } = useCurrency();
+  const { formatPrice, formatBoth, currency } = useCurrency();
   const submit = useServerFn(createOrder);
   const loadProfile = useServerFn(getMyProfile);
+
+  const activeCities = REGIONAL_CITIES[currency] || REGIONAL_CITIES.SDG;
+  const defaultCityName = activeCities[0]?.name || "الرياض";
 
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
     shipping_address: "",
-    city: "أم درمان",
+    city: defaultCityName,
     notes: "",
   });
   const [loading, setLoading] = useState(false);
@@ -72,10 +79,16 @@ function CheckoutPage() {
     }
   }, []);
 
-  const currentCity = form.city.trim() || "أم درمان";
-  const shippingFee = getShippingFee(currentCity, total);
+  const currentCity = form.city.trim() || defaultCityName;
+  const shippingFee = getShippingFee(
+    currentCity,
+    total,
+    settings.freeShippingThreshold,
+    settings.deliveryFee,
+    currency,
+  );
   const finalTotal = total + shippingFee;
-  const deliveryEstimate = getDeliveryTimeEstimate(currentCity);
+  const deliveryEstimate = getDeliveryTimeEstimate(currentCity, currency);
 
   const { primary: finalTotalPrimary, secondary: finalTotalSecondary } = formatBoth(finalTotal);
 
@@ -145,6 +158,7 @@ function CheckoutPage() {
         phone: form.phone,
         city: finalCity,
         shippingAddress: form.shipping_address,
+        notes: form.notes ? form.notes : undefined,
         items: orderItemsSnapshot,
         isGuest: res.isGuest,
       });
@@ -156,8 +170,33 @@ function CheckoutPage() {
     }
   }
 
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
   // --- ORDER SUCCESS VIEW ---
   if (completedOrder) {
+    const whatsappOrderSummary = formatOrderWhatsAppSummary({
+      orderId: completedOrder.orderId,
+      fullName: completedOrder.fullName,
+      phone: completedOrder.phone,
+      city: completedOrder.city,
+      shippingAddress: completedOrder.shippingAddress,
+      notes: completedOrder.notes,
+      items: completedOrder.items,
+      total: completedOrder.total,
+      storeName: settings.storeName,
+    });
+
+    const handleCopySummary = async () => {
+      try {
+        await navigator.clipboard.writeText(whatsappOrderSummary);
+        setCopiedSummary(true);
+        toast.success("تم نسخ تفاصيل الفاتورة إلى الحافظة بنجاح!");
+        setTimeout(() => setCopiedSummary(false), 2500);
+      } catch {
+        toast.error("تعذر النسخ التلقائي");
+      }
+    };
+
     return (
       <div className="min-h-screen flex flex-col bg-muted/20">
         <SiteHeader />
@@ -170,12 +209,22 @@ function CheckoutPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
               شكراً لك! تم استلام طلبك بنجاح
             </h1>
-            <p className="text-muted-foreground text-sm sm:text-base mb-6">
+            <p className="text-muted-foreground text-sm sm:text-base mb-4">
               رقم الطلب:{" "}
               <span className="font-mono font-bold text-foreground">
                 #{completedOrder.orderId.slice(0, 8).toUpperCase()}
               </span>
             </p>
+
+            {/* Instant Alert Banner */}
+            <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3.5 mb-6 text-start flex items-start gap-3">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping mt-1.5 shrink-0" />
+              <div className="text-xs sm:text-sm text-emerald-900 leading-relaxed">
+                <strong>إشعار فوري:</strong> تم تسجيل طلبك تلقائياً في نظام إدارة المتجر. لبدء
+                التجهيز السريع للشحنة، يمكنك إرسال ملخص الطلب لإدارة المتجر عبر واتساب بنقرة واحدة
+                أدناه.
+              </div>
+            </div>
 
             <div className="bg-muted/40 rounded-xl p-4 text-start text-sm space-y-2 mb-6 border border-border/50">
               <div className="flex justify-between font-medium">
@@ -190,6 +239,12 @@ function CheckoutPage() {
                   {completedOrder.city} - {completedOrder.shippingAddress}
                 </span>
               </div>
+              {completedOrder.notes && (
+                <div className="flex justify-between font-medium text-amber-800 bg-amber-50/50 p-2 rounded-lg">
+                  <span>ملاحظاتك:</span>
+                  <span>{completedOrder.notes}</span>
+                </div>
+              )}
               <div className="flex justify-between font-medium">
                 <span className="text-muted-foreground">طريقة الدفع:</span>
                 <span className="text-primary font-semibold">الدفع عند الاستلام (COD)</span>
@@ -222,41 +277,50 @@ function CheckoutPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href={`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                  `مرحباً ${settings.storeName}، قمت للتو بتأكيد الطلب رقم #${completedOrder.orderId.slice(0, 8).toUpperCase()} بقيمة ${formatPrice(completedOrder.total)}. أرجو تأكيد الشحن لعنواني: ${completedOrder.city} - ${completedOrder.shippingAddress}. شكراً!`,
+                  whatsappOrderSummary,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto"
               >
-                <Button className="w-full h-11 px-6 font-semibold gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white border-none shadow-sm">
+                <Button className="w-full h-11 px-6 font-semibold gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white border-none shadow-sm cursor-pointer">
                   <WhatsAppEmblemIcon className="w-4 h-4 fill-current" />
-                  تأكيد فوري عبر واتساب
+                  إرسال ملخص الطلب للإدارة عبر واتساب
                 </Button>
               </a>
+              <Button
+                variant="outline"
+                onClick={handleCopySummary}
+                className="w-full sm:w-auto h-11 px-5 font-medium gap-2 cursor-pointer"
+              >
+                {copiedSummary ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>تم النسخ!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>نسخ الفاتورة</span>
+                  </>
+                )}
+              </Button>
               <Link
                 to="/track-order"
                 search={{ q: completedOrder.orderId }}
                 className="w-full sm:w-auto"
               >
-                <Button variant="outline" className="w-full h-11 px-6 font-medium gap-2">
+                <Button variant="outline" className="w-full h-11 px-5 font-medium gap-2">
                   <Truck className="w-4 h-4" />
                   تتبع الشحنة الآن
                 </Button>
               </Link>
               <Link to="/products" className="w-full sm:w-auto">
-                <Button variant="ghost" className="w-full h-11 px-6 font-medium gap-2">
+                <Button variant="ghost" className="w-full h-11 px-5 font-medium gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   متابعة التسوق
                 </Button>
               </Link>
-              {!completedOrder.isGuest && (
-                <Link to="/orders" className="w-full sm:w-auto">
-                  <Button variant="ghost" className="w-full h-11 px-6 font-medium gap-2">
-                    <PackageCheck className="w-4 h-4" />
-                    عرض سجل طلباتي
-                  </Button>
-                </Link>
-              )}
             </div>
           </div>
         </main>
@@ -415,7 +479,7 @@ function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <select
                     id="city-select"
-                    value={SUDAN_CITIES.some((c) => c.name === form.city) ? form.city : "other"}
+                    value={activeCities.some((c) => c.name === form.city) ? form.city : "other"}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "other") {
@@ -427,7 +491,7 @@ function CheckoutPage() {
                     }}
                     className="h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    {SUDAN_CITIES.map((c) => (
+                    {activeCities.map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name} {shippingFee === 0 ? "(شحن مجاني)" : `(${formatPrice(c.rate)})`}
                       </option>
@@ -438,7 +502,7 @@ function CheckoutPage() {
                   <Input
                     id="city"
                     required
-                    placeholder="اكتبي اسم مدينتكِ أو منطقتكِ..."
+                    placeholder="اكتب اسم مدينتك أو منطقتك بالتفصيل..."
                     value={form.city}
                     onChange={(e) => {
                       setForm({ ...form, city: e.target.value });

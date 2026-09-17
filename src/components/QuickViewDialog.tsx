@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { resolveProductImage } from "@/lib/product-images";
+import {
+  resolveProductImage,
+  extractProductGallery,
+  cleanProductDescription,
+} from "@/lib/product-images";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -23,6 +27,9 @@ import {
   Leaf,
   Clock,
   ExternalLink,
+  Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ProductCardProduct } from "@/components/ProductCard";
@@ -38,9 +45,13 @@ export function QuickViewDialog({ product, isOpen, onClose }: QuickViewDialogPro
   const { isInWishlist, toggle } = useWishlist();
   const { formatPrice, formatBoth, currencyConfig } = useCurrency();
   const [quantity, setQuantity] = useState(1);
+  const [selectedImgIndex, setSelectedImgIndex] = useState(0);
+
+  const galleryImages = useMemo(() => (product ? extractProductGallery(product) : []), [product]);
 
   if (!product) return null;
 
+  const activeImage = galleryImages[selectedImgIndex] || resolveProductImage(product.image_url);
   const price = Number(product.price);
   const original = product.original_price != null ? Number(product.original_price) : null;
   const stock = product.stock != null ? Number(product.stock) : 25;
@@ -120,15 +131,74 @@ export function QuickViewDialog({ product, isOpen, onClose }: QuickViewDialogPro
               </span>
             )}
 
-            {/* Natural Size High-Resolution Image */}
-            <div className="w-full max-w-[440px] flex items-center justify-center my-auto">
-              <img
-                src={resolveProductImage(product.image_url)}
-                alt={product.name}
-                className={`w-full max-h-[460px] object-contain rounded-2xl drop-shadow-md transition-transform duration-300 hover:scale-102 ${
-                  isOutOfStock ? "grayscale opacity-75" : ""
-                }`}
-              />
+            {/* Natural Size High-Resolution Image & Gallery Navigation */}
+            <div className="w-full max-w-[440px] flex flex-col items-center justify-center my-auto relative group">
+              <div className="relative w-full flex items-center justify-center">
+                <img
+                  src={activeImage}
+                  alt={`${product.name} - زاوية ${selectedImgIndex + 1}`}
+                  className={`w-full max-h-[420px] object-contain rounded-2xl drop-shadow-md transition-transform duration-300 ${
+                    isOutOfStock ? "grayscale opacity-75" : ""
+                  }`}
+                />
+
+                {galleryImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedImgIndex((prev) =>
+                          prev === 0 ? galleryImages.length - 1 : prev - 1,
+                        )
+                      }
+                      className="absolute start-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 flex items-center justify-center shadow-xs cursor-pointer"
+                      aria-label="الزاوية السابقة"
+                    >
+                      <ChevronRight className="w-4 h-4 rtl:rotate-0 ltr:rotate-180" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedImgIndex((prev) =>
+                          prev === galleryImages.length - 1 ? 0 : prev + 1,
+                        )
+                      }
+                      className="absolute end-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 flex items-center justify-center shadow-xs cursor-pointer"
+                      aria-label="الزاوية التالية"
+                    >
+                      <ChevronLeft className="w-4 h-4 rtl:rotate-0 ltr:rotate-180" />
+                    </button>
+
+                    <span className="absolute bottom-2 start-2 z-10 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-xs pointer-events-none">
+                      <Layers className="w-2.5 h-2.5" />
+                      <span>
+                        {selectedImgIndex + 1}/{galleryImages.length}
+                      </span>
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Thumbnails if multiple angles exist */}
+              {galleryImages.length > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-3 overflow-x-auto max-w-full py-1">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedImgIndex(idx)}
+                      className={`w-11 h-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                        idx === selectedImgIndex
+                          ? "border-primary ring-2 ring-primary/25 scale-105"
+                          : "border-border/70 opacity-60 hover:opacity-100"
+                      }`}
+                      aria-label={`عرض الزاوية ${idx + 1}`}
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Bottom Sensory Badge */}
@@ -229,8 +299,8 @@ export function QuickViewDialog({ product, isOpen, onClose }: QuickViewDialogPro
                 <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
                   وصف المنتج وأثره على البشرة
                 </h4>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {product.description ||
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  {cleanProductDescription(product.description) ||
                     "تركيبة متطورة مستوحاة من نقاء الطبيعة، تم تصميمها بعناية فائقة لتغذية طبقات البشرة بعمق، واستعادة التوازن المائي الطبيعي، ومنحكِ إشراقة صحية تدوم طوال اليوم دون أن تترك أي أثر دهني."}
                 </p>
               </div>

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
 import { listProducts } from "@/lib/products.functions";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
 const boxesQuery = queryOptions({
   queryKey: ["products", "box"],
@@ -14,8 +15,8 @@ const boxesQuery = queryOptions({
 export const Route = createFileRoute("/boxes")({
   head: () => ({
     meta: [
-      { title: "بوكسات العناية — So Beauty" },
-      { name: "description", content: "بوكسات عناية متكاملة بأفضل الأسعار." },
+      { title: "البوكسات والمجموعات المتكاملة — العروض الحصرية" },
+      { name: "description", content: "باقات ومجموعات متكاملة بأفضل الأسعار وأعلى قيمة." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(boxesQuery),
@@ -25,11 +26,17 @@ export const Route = createFileRoute("/boxes")({
 });
 
 function Page() {
+  const { settings } = useStoreSettings();
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader />
       <main className="flex-1 container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">بوكسات العناية المتكاملة</h1>
+        <h1
+          className="text-3xl font-bold mb-6"
+          style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
+        >
+          البوكسات والمجموعات المتكاملة
+        </h1>
         <Suspense fallback={<div>...</div>}>
           <Grid />
         </Suspense>

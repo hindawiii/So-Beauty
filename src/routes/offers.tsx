@@ -14,8 +14,8 @@ const offersQuery = queryOptions({
 export const Route = createFileRoute("/offers")({
   head: () => ({
     meta: [
-      { title: "العروض — So Beauty" },
-      { name: "description", content: "أحدث العروض والخصومات على منتجات العناية الطبيعية." },
+      { title: "العروض الحصرية والتخفيضات — أقوى الصفقات" },
+      { name: "description", content: "أحدث العروض الحصرية والخصومات الخاصة لفترة محدودة." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(offersQuery),

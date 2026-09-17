@@ -18,6 +18,50 @@ export interface StoreBrandingSettings {
   logoUrl?: string; // Optional logo image URL for custom branding
   isDemoMode: boolean;
   adminPin: string;
+
+  // Dynamic Homepage Sections Configuration
+  heroTitle?: string;
+  heroSubtitle?: string;
+  heroPrimaryCtaText?: string;
+  heroSecondaryCtaText?: string;
+  heroImageUrl?: string;
+
+  // Features (4 Trust Badges)
+  feature1Title?: string;
+  feature1Desc?: string;
+  feature2Title?: string;
+  feature2Desc?: string;
+  feature3Title?: string;
+  feature3Desc?: string;
+  feature4Title?: string;
+  feature4Desc?: string;
+
+  // Promo Banner Section
+  promoTitle?: string;
+  promoSubtitle?: string;
+  promoCtaText?: string;
+  promoImageUrl?: string;
+
+  // Sections Visibility Toggles
+  showSkinTypesSection?: boolean;
+  showBeforeAfterSection?: boolean;
+  showCustomerReviews?: boolean;
+  reviewsTitle?: string;
+  reviewsSubtitle?: string;
+
+  // Color & Typography Harmony
+  themeColorHex?: string;
+  themeColorOklch?: string;
+  fontDisplay?: string;
+  fontBody?: string;
+
+  // Phase 2: Interactive Motion & Card Slides Engine
+  cardMotionStyle?: "tilt" | "jump" | "shake" | "rotate" | "flip" | "none";
+  enableInCardSlider?: boolean;
+  enableQuickPeek?: boolean;
+
+  // Phase 3: Security & Kill-Switch
+  developerPortalLocked?: boolean;
 }
 
 // Immutable golden original settings for "سو بيوتي"
@@ -40,6 +84,42 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   logoUrl: "",
   isDemoMode: false,
   adminPin: "2026",
+
+  heroTitle: "جمالكِ الطبيعي يبدأ من هنا",
+  heroSubtitle:
+    "اكتشفي مجموعة So Beauty من منتجات العناية الطبيعية بالبشرة — نقاء نباتي وإشراقة تدوم.",
+  heroPrimaryCtaText: "تسوّق الآن",
+  heroSecondaryCtaText: "شاهد العروض",
+  heroImageUrl: "",
+
+  feature1Title: "نتائج فعّالة",
+  feature1Desc: "منتجات مصنوعة بعناية لأفضل النتائج.",
+  feature2Title: "شحن سريع",
+  feature2Desc: "توصيل طلبك في أسرع وقت.",
+  feature3Title: "دفع آمن",
+  feature3Desc: "ادفع عند الاستلام أو أونلاين.",
+  feature4Title: "أصلية 100%",
+  feature4Desc: "نضمن جودة وأصالة كل منتج.",
+
+  promoTitle: "Natural Bloom",
+  promoSubtitle: "مكوّنات نباتية 100% مستخلصة بعناية لتمنحك بشرة نضرة وصحية.",
+  promoCtaText: "اكتشف البوكسات",
+  promoImageUrl: "",
+
+  showSkinTypesSection: true,
+  showBeforeAfterSection: true,
+  showCustomerReviews: true,
+  reviewsTitle: "آراء عملائنا",
+  reviewsSubtitle: "تجارب حقيقية لعميلاتنا مع منتجات سو بيوتي الطبيعية للعناية بالبشرة",
+
+  themeColorHex: "#7b3370",
+  themeColorOklch: "oklch(0.48 0.08 300)",
+  fontDisplay: '"El Messiri", "Tajawal", serif',
+
+  cardMotionStyle: "tilt",
+  enableInCardSlider: true,
+  enableQuickPeek: true,
+  developerPortalLocked: false,
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreBrandingSettings = {
@@ -83,6 +163,21 @@ export function StoreSettingsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+      // Dynamically apply primary color & font CSS variables if defined
+      if (typeof document !== "undefined") {
+        if (settings.themeColorOklch) {
+          document.documentElement.style.setProperty("--primary", settings.themeColorOklch);
+          document.documentElement.style.setProperty("--brand", settings.themeColorOklch);
+          document.documentElement.style.setProperty("--ring", settings.themeColorOklch);
+        }
+        if (settings.fontDisplay) {
+          document.documentElement.style.setProperty("--font-display", settings.fontDisplay);
+        }
+        if (settings.storeName) {
+          document.title = `${settings.storeName} — ${settings.tagline || "تسوق أونلاين"}`;
+        }
+      }
     } catch (e) {
       console.warn("Failed to persist store settings:", e);
     }

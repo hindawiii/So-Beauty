@@ -4,17 +4,18 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import natural from "@/assets/natural-collection.jpg";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "من نحن — So Beauty" },
+      { title: "من نحن — قصة المتجر ورؤيتنا" },
       {
         name: "description",
-        content: "تعرّفي على قصة سو بيوتي، رسالتنا ورؤيتنا في تقديم عناية طبيعية راقية لبشرتك.",
+        content: "تعرّف على قصتنا، رسالتنا ورؤيتنا في تقديم أفضل المنتجات والخدمات المعتمدة.",
       },
-      { property: "og:title", content: "من نحن — So Beauty" },
-      { property: "og:description", content: "قصة سو بيوتي: عناية طبيعية بمكوّنات نقيّة." },
+      { property: "og:title", content: "من نحن — قصة متجرنا" },
+      { property: "og:description", content: "نقدم لكم الجودة والأصالة في كل تجربة تسوق." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -23,13 +24,30 @@ export const Route = createFileRoute("/about")({
 });
 
 const values = [
-  { Icon: Leaf, title: "مكوّنات طبيعية", desc: "خلاصات نباتية نقيّة بلا مواد كيميائية قاسية." },
-  { Icon: ShieldCheck, title: "جودة مضمونة", desc: "منتجات أصلية 100% مختبرة بعناية." },
-  { Icon: Sparkles, title: "نتائج ملموسة", desc: "تركيبات فعّالة تمنح بشرتك إشراقة حقيقية." },
-  { Icon: HeartHandshake, title: "خدمة صادقة", desc: "دعم قريب من عملائنا في كل خطوة." },
+  { Icon: Leaf, title: "أصالة وجودة", desc: "منتجات موثوقة ومختارة بعناية لأعلى معايير الرضا." },
+  { Icon: ShieldCheck, title: "ضمان شامل", desc: "منتجات أصلية 100% مختبرة ومضمونة المصدر." },
+  {
+    Icon: Sparkles,
+    title: "تجربة استثنائية",
+    desc: "خدمة متكاملة وابتكار يمنحك قيمة حقيقية في كل طلب.",
+  },
+  {
+    Icon: HeartHandshake,
+    title: "خدمة صادقة",
+    desc: "فريق دعم قريب من عملائنا في كل خطوة ومتابعة دائمة.",
+  },
 ];
 
 function AboutPage() {
+  const { settings } = useStoreSettings();
+
+  const brandName = settings.storeName || "متجرنا الإلكتروني";
+  const aboutHeading = settings.aboutTitle || `عالم ${brandName}`;
+  const aboutStory =
+    settings.aboutDescription ||
+    `${brandName} علامة تجارية تأسست من إيمانٍ عميق بتقديم أعلى مستويات الجودة والتميز. نختار منتجاتنا بدقة متناهية، ونقدّم لك تشكيلة تجمع بين الفخامة والفعالية لتنعم بتجربة تسوق موثوقة ومميزة كل يوم.`;
+  const heroImg = settings.promoImageUrl || settings.heroImageUrl || natural;
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
@@ -39,16 +57,21 @@ function AboutPage() {
           <div className="container mx-auto px-4 grid md:grid-cols-2 gap-10 items-center">
             <div>
               <p className="text-primary font-bold mb-3 tracking-wide">من نحن</p>
-              <h1 className="text-3xl md:text-5xl font-bold text-primary mb-4 leading-tight">
-                قصّة <span style={{ fontFamily: "var(--font-latin)" }}>So Beauty</span>
+              <h1
+                className="text-3xl md:text-5xl font-bold text-primary mb-4 leading-tight"
+                style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
+              >
+                قصّة <span>{brandName}</span>
               </h1>
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-                سو بيوتي علامة سودانية وُلدت من إيمانٍ عميق بأن جمال البشرة يبدأ من الطبيعة. نختار
-                مكوّناتنا بعناية، ونقدّم لكِ منتجات عناية راقية تجمع بين النقاء النباتي والفعالية
-                العلمية، لتنعمي ببشرة صحيّة ومشرقة كل يوم.
+                {aboutStory}
               </p>
             </div>
-            <img src={natural} alt="So Beauty" className="rounded-3xl w-full shadow-lg" />
+            <img
+              src={heroImg}
+              alt={brandName}
+              className="rounded-3xl w-full max-h-[460px] object-cover shadow-lg"
+            />
           </div>
         </section>
 
@@ -58,23 +81,23 @@ function AboutPage() {
             <Target className="w-10 h-10 text-primary mb-4" />
             <h2 className="text-2xl font-bold mb-3">رسالتنا</h2>
             <p className="text-muted-foreground leading-relaxed">
-              أن نجعل العناية الطبيعية بالبشرة تجربةً يومية سهلة وممتعة لكل امرأة، عبر منتجات موثوقة
-              بأسعار عادلة وخدمة تليق بكِ.
+              أن نجعل تجربة التسوق وخدمة العملاء سهلة وممتعة وموثوقة لكل عميل، عبر منتجات أصلية
+              بأسعار عادلة وخدمة تليق بتطلعاتكم.
             </p>
           </div>
           <div className="bg-card border rounded-2xl p-8">
             <Eye className="w-10 h-10 text-primary mb-4" />
             <h2 className="text-2xl font-bold mb-3">رؤيتنا</h2>
             <p className="text-muted-foreground leading-relaxed">
-              أن نكون الوجهة الأولى في السودان لمنتجات العناية الطبيعية، ونصنع مجتمعًا يحتفي بجمال
-              البشرة الحقيقي.
+              أن نكون الوجهة الأولى والموثوقة في تلبية احتياجاتكم، وصناعة مجتمع يقدّر القيمة والجودة
+              والخدمة الراقية.
             </p>
           </div>
         </section>
 
         {/* Values */}
         <section className="container mx-auto px-4 pb-14">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">قيمنا</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">قيمنا الراسخة</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {values.map(({ Icon, title, desc }) => (
               <div key={title} className="text-center p-4">
@@ -91,17 +114,19 @@ function AboutPage() {
         {/* CTA */}
         <section className="container mx-auto px-4 pb-16">
           <div className="bg-primary/5 rounded-3xl p-8 md:p-12 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">ابدئي رحلتك مع سو بيوتي</h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              ابدأ تجربة التسوق مع {brandName}
+            </h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-              اكتشفي مجموعتنا من منتجات العناية الطبيعية واختاري ما يناسب بشرتك.
+              اكتشف أحدث التشكيلات والعروض الحصرية المتاحة اليوم بأفضل الأسعار.
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link to="/products">
-                <Button size="lg">تسوّقي الآن</Button>
+                <Button size="lg">{settings.heroPrimaryCtaText || "تسوّق الآن"}</Button>
               </Link>
-              <Link to="/boxes">
+              <Link to="/offers">
                 <Button size="lg" variant="outline">
-                  بوكسات العناية
+                  {settings.heroSecondaryCtaText || "شاهد العروض"}
                 </Button>
               </Link>
             </div>

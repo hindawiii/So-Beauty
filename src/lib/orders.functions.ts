@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdminGuard } from "./admin-auth";
 import type { Database } from "@/integrations/supabase/types";
 import { MOCK_PRODUCTS, atomicDecrementMockStock } from "./mock-products";
 import { getShippingFee } from "./shipping";
@@ -123,8 +124,8 @@ export const MOCK_ORDERS: SavedOrder[] = [
 ];
 
 function getSupabaseClient() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
   try {
     return createClient<Database>(url, key, {
@@ -444,32 +445,37 @@ export const trackOrder = createServerFn({ method: "POST" })
 /**
  * Admin: List all orders with optional status or text filter
  */
-export const adminListAllOrders = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = getSupabaseClient();
-  if (sb) {
-    try {
-      const { data: dbOrders, error } = await sb
-        .from("orders")
-        .select(
-          "id, total, status, full_name, phone, shipping_address, city, notes, created_at, order_items(id, product_name, quantity, unit_price)",
-        )
-        .order("created_at", { ascending: false });
+export const adminListAllOrders = createServerFn({ method: "GET" })
+  .inputValidator((data: { adminPin?: string } | undefined) => data ?? {})
+  .handler(async ({ data }) => {
+    await requireAdminGuard(data?.adminPin);
 
-      if (!error && dbOrders && dbOrders.length > 0) {
-        const dbIds = new Set(dbOrders.map((o) => o.id));
-        const mockNonOverlap = MOCK_ORDERS.filter((m) => !dbIds.has(m.id));
-        return [...dbOrders, ...mockNonOverlap];
+    const sb = getSupabaseClient();
+    if (sb) {
+      try {
+        const { data: dbOrders, error } = await sb
+          .from("orders")
+          .select(
+            "id, total, status, full_name, phone, shipping_address, city, notes, created_at, order_items(id, product_name, quantity, unit_price)",
+          )
+          .order("created_at", { ascending: false });
+
+        if (!error && dbOrders && dbOrders.length > 0) {
+          const dbIds = new Set(dbOrders.map((o) => o.id));
+          const mockNonOverlap = MOCK_ORDERS.filter((m) => !dbIds.has(m.id));
+          return [...dbOrders, ...mockNonOverlap];
+        }
+      } catch {
+        // Fallback to in-memory orders
       }
-    } catch {
-      // Fallback to in-memory orders
     }
-  }
-  return MOCK_ORDERS;
-});
+    return MOCK_ORDERS;
+  });
 
 const updateOrderStatusSchema = z.object({
   orderId: z.string(),
   newStatus: z.enum(["pending", "confirmed", "shipped", "delivered", "cancelled"]),
+  adminPin: z.string().optional(),
 });
 
 /**
@@ -478,6 +484,8 @@ const updateOrderStatusSchema = z.object({
 export const adminUpdateOrderStatus = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateOrderStatusSchema.parse(data))
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     // 1. Update in-memory registry
     const localOrder = MOCK_ORDERS.find(
       (o) =>

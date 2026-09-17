@@ -4,9 +4,10 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useCart } from "@/hooks/useCart";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { resolveProductImage } from "@/lib/product-images";
 import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
-import { SUDAN_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
+import { REGIONAL_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
 import { Button } from "@/components/ui/button";
 import {
   Trash2,
@@ -27,10 +28,10 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
-      { title: "سلة التسوق — So Beauty" },
+      { title: "سلة التسوق — مراجعة المنتجات والطلبات" },
       {
         name: "description",
-        content: "راجعي مشترياتكِ من منتجات العناية بالبشرة، واستفيدي من عرض التوصيل المجاني.",
+        content: "راجع منتجاتك المختارة في سلة التسوق واستفد من عروض الشحن والتوصيل السريع.",
       },
     ],
   }),
@@ -39,26 +40,37 @@ export const Route = createFileRoute("/cart")({
 
 function CartPage() {
   const { items, setQty, remove, clear, total } = useCart();
-  const { formatPrice, formatBoth } = useCurrency();
+  const { formatPrice, formatBoth, currency } = useCurrency();
+  const { settings } = useStoreSettings();
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
-  const [selectedCity, setSelectedCity] = useState("أم درمان");
+
+  const activeCities = REGIONAL_CITIES[currency] || REGIONAL_CITIES.SDG;
+  const defaultCity = activeCities[0]?.name || "الرياض";
+  const [selectedCity, setSelectedCity] = useState(defaultCity);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
     const savedCity = localStorage.getItem("so_beauty_selected_city");
     if (savedCity) setSelectedCity(savedCity);
-  }, []);
+    else setSelectedCity(defaultCity);
+  }, [defaultCity]);
 
   const handleCityChange = (city: string) => {
     setSelectedCity(city);
     localStorage.setItem("so_beauty_selected_city", city);
   };
 
-  const shippingFee = getShippingFee(selectedCity, total);
+  const shippingFee = getShippingFee(
+    selectedCity,
+    total,
+    settings.freeShippingThreshold,
+    settings.deliveryFee,
+    currency,
+  );
   const finalTotal = total + shippingFee;
-  const deliveryEstimate = getDeliveryTimeEstimate(selectedCity);
+  const deliveryEstimate = getDeliveryTimeEstimate(selectedCity, currency);
 
   const { primary: finalTotalPrimary, secondary: finalTotalSecondary } = formatBoth(finalTotal);
 
@@ -293,9 +305,9 @@ function CartPage() {
                   onChange={(e) => handleCityChange(e.target.value)}
                   className="w-full h-11 px-3 bg-background border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
-                  {SUDAN_CITIES.map((c) => (
+                  {activeCities.map((c) => (
                     <option key={c.name} value={c.name}>
-                      {c.name} ({formatPrice(c.rate)})
+                      {c.name} ({shippingFee === 0 ? "شحن مجاني" : formatPrice(c.rate)})
                     </option>
                   ))}
                 </select>

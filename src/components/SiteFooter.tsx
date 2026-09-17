@@ -31,8 +31,8 @@ export function SiteFooter() {
   const customerCareLinks = [
     { to: "/track-order", label: "تتبع شحنتك المباشرة", Icon: Truck },
     { to: "/about", label: "من نحن وقصة المتجر", Icon: Info },
-    { to: "/about", label: "ضمان المنتجات الأصلية 100%", Icon: ShieldCheck },
-    { to: "/account", label: "خدمة العملاء والاستبدال", Icon: RotateCcw },
+    { to: "/privacy", label: "سياسة الخصوصية وسرية البيانات", Icon: ShieldCheck },
+    { to: "/terms", label: "الشروط والأحكام وسياسة الشراء", Icon: RotateCcw },
   ] as const;
 
   const contactItems = [
@@ -50,7 +50,7 @@ export function SiteFooter() {
       className="text-primary-foreground mt-16 relative overflow-hidden"
       style={{
         background:
-          "linear-gradient(135deg, oklch(0.35 0.14 330) 0%, oklch(0.42 0.15 320) 45%, oklch(0.48 0.12 300) 100%)",
+          "linear-gradient(135deg, color-mix(in srgb, var(--primary) 85%, black) 0%, color-mix(in srgb, var(--primary) 95%, black) 45%, color-mix(in srgb, var(--primary) 75%, black) 100%)",
       }}
     >
       {/* Subtle Luxury Ambient Glows */}
@@ -212,9 +212,24 @@ export function SiteFooter() {
       {/* Bottom Sub-Bar: Copyright & Payment Security */}
       <div className="border-t border-white/15 py-5 px-4 relative bg-black/10">
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-start text-xs text-white/80">
-          <p>© {new Date().getFullYear()} So Beauty · سو بيوتي. جميع الحقوق محفوظة.</p>
-          <div className="flex items-center gap-2 text-[11px] text-white/70">
-            <span>تسوق آمن وموثوق</span>
+          <p>
+            © {new Date().getFullYear()} {settings.storeName || "المتجر الإلكتروني"}. جميع الحقوق
+            محفوظة.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-white/70">
+            <Link
+              to="/privacy"
+              className="hover:text-white transition-colors underline-offset-4 hover:underline"
+            >
+              سياسة الخصوصية
+            </Link>
+            <span>•</span>
+            <Link
+              to="/terms"
+              className="hover:text-white transition-colors underline-offset-4 hover:underline"
+            >
+              الشروط والأحكام
+            </Link>
             <span>•</span>
             <span>الدفع عند الاستلام</span>
             <span>•</span>

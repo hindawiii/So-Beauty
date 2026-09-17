@@ -1,10 +1,14 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Suspense, useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect, useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getProduct, listProducts } from "@/lib/products.functions";
-import { resolveProductImage } from "@/lib/product-images";
+import {
+  resolveProductImage,
+  extractProductGallery,
+  cleanProductDescription,
+} from "@/lib/product-images";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -59,7 +63,7 @@ const allProductsQuery = queryOptions({
 
 export const Route = createFileRoute("/products_/$id")({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(productQuery(params.id)),
-  head: () => ({ meta: [{ title: "تفاصيل المنتج — So Beauty" }] }),
+  head: () => ({ meta: [{ title: "تفاصيل ومواصفات المنتج — تسوق أونلاين" }] }),
   component: Page,
   errorComponent: ({ error }) => <div className="p-8 text-center">{error.message}</div>,
   notFoundComponent: () => (
@@ -136,6 +140,10 @@ function Detail() {
   const [showStickyBar, setShowStickyBar] = useState(false);
   const actionButtonsRef = useRef<HTMLDivElement>(null);
 
+  const galleryImages = useMemo(() => extractProductGallery(p), [p]);
+  const [selectedImgIndex, setSelectedImgIndex] = useState(0);
+  const activeImage = galleryImages[selectedImgIndex] || resolveProductImage(p.image_url);
+
   const price = Number(p.price);
   const original = p.original_price != null ? Number(p.original_price) : null;
   const stock = p.stock != null ? Number(p.stock) : 25;
@@ -209,8 +217,8 @@ function Detail() {
         <div className="space-y-4">
           <div className="relative">
             <ProductImageViewer
-              src={resolveProductImage(p.image_url)}
-              alt={p.name}
+              src={activeImage}
+              alt={`${p.name} - زاوية ${selectedImgIndex + 1}`}
               isOutOfStock={isOutOfStock}
             />
 
@@ -246,6 +254,47 @@ function Detail() {
               </span>
             )}
           </div>
+
+          {/* Multi-angle Thumbnails Showcase (Shown only if multiple angles exist) */}
+          {galleryImages.length > 1 && (
+            <div className="space-y-2 p-3 bg-muted/30 rounded-2xl border border-border/60">
+              <div className="flex items-center justify-between text-xs px-1">
+                <span className="font-semibold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                  <Layers className="w-3.5 h-3.5 text-primary" />
+                  <span>زوايا تصوير المنتج ({galleryImages.length} صور)</span>
+                </span>
+                <span className="text-[11px] font-mono text-muted-foreground bg-background px-2 py-0.5 rounded-full border border-border/50">
+                  {selectedImgIndex + 1} / {galleryImages.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-1 no-scrollbar scroll-smooth">
+                {galleryImages.map((imgUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedImgIndex(idx)}
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                      idx === selectedImgIndex
+                        ? "border-primary shadow-xs ring-2 ring-primary/20 scale-102"
+                        : "border-border/80 opacity-70 hover:opacity-100 hover:border-slate-400"
+                    }`}
+                    aria-label={`عرض الزاوية ${idx + 1}`}
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`${p.name} - زاوية ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    {idx === selectedImgIndex && (
+                      <span className="absolute bottom-0 inset-x-0 h-1 bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quick Sensory Badges Bar */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -347,8 +396,8 @@ function Detail() {
           </div>
 
           {/* Short Lead Summary */}
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-            {p.description ||
+          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed mb-6 whitespace-pre-line">
+            {cleanProductDescription(p.description) ||
               "منتج عناية تخصصي عالي الفعالية، مصمم لتغذية بشرتكِ ومنحها الإشراقة والترطيب العميق طوال اليوم دون أي ملمس دهني."}
           </p>
 

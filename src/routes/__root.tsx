@@ -82,16 +82,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "So Beauty — العناية الطبيعية بالبشرة" },
+      { title: "سو بيوتي (So Beauty) — متجر منتجات العناية الطبيعية بالبشرة" },
       {
         name: "description",
-        content: "منتجات عناية طبيعية للبشرة مستوحاة من نقاء الطبيعة، لإشراقة صحية كل يوم.",
+        content:
+          "متجر سو بيوتي لمنتجات العناية الطبيعية بالبشرة في السودان — تشكيلة مختارة من السيرومات والمرطبات الطبيعية مع الدفع عند الاستلام والشحن السريع لجميع المدن.",
       },
-      { name: "author", content: "So Beauty" },
-      { property: "og:title", content: "So Beauty — العناية الطبيعية بالبشرة" },
+      { name: "author", content: "So Beauty — سو بيوتي" },
+      {
+        property: "og:title",
+        content: "سو بيوتي (So Beauty) — متجر منتجات العناية الطبيعية بالبشرة",
+      },
       {
         property: "og:description",
-        content: "منتجات عناية طبيعية للبشرة مستوحاة من نقاء الطبيعة.",
+        content:
+          "متجر سو بيوتي لمنتجات العناية الطبيعية بالبشرة في السودان — تشكيلة مختارة من السيرومات والمرطبات الطبيعية مع الدفع عند الاستلام والشحن السريع لجميع المدن.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

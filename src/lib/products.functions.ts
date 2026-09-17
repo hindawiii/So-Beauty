@@ -1,11 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminGuard } from "./admin-auth";
 import type { Database } from "@/integrations/supabase/types";
 import { MOCK_PRODUCTS } from "./mock-products";
+import {
+  encodeProductGallery,
+  cleanProductDescription,
+  extractProductGallery,
+} from "./product-images";
+
+function attachGalleryToProduct(p: Product): Product {
+  const gallery = extractProductGallery(p);
+  return {
+    ...p,
+    gallery_images: gallery.length > 1 ? gallery : undefined,
+  };
+}
 
 function serverClient() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
   try {
     return createClient<Database>(url, key, {
@@ -31,7 +45,7 @@ export const listProducts = createServerFn({ method: "GET" })
         if (data?.category) q = q.eq("category", data.category as never);
         const { data: rows, error } = await q;
         if (!error && rows && rows.length > 0) {
-          return rows;
+          return (rows as Product[]).map(attachGalleryToProduct);
         }
       } catch (err) {
         console.warn("[Products] Supabase query failed, using in-memory fallback:", err);
@@ -43,7 +57,7 @@ export const listProducts = createServerFn({ method: "GET" })
     if (data?.category) {
       items = items.filter((p) => p.category === data.category);
     }
-    return items;
+    return items.map(attachGalleryToProduct);
   });
 
 export const getProduct = createServerFn({ method: "GET" })
@@ -59,36 +73,41 @@ export const getProduct = createServerFn({ method: "GET" })
           .eq("is_active", true)
           .maybeSingle();
         if (!error && row) {
-          return row;
+          return attachGalleryToProduct(row as Product);
         }
       } catch (err) {
         console.warn("[Products] Supabase getProduct query failed, using fallback:", err);
       }
     }
 
-    return MOCK_PRODUCTS.find((p) => p.id === data.id && p.is_active) ?? null;
+    const found = MOCK_PRODUCTS.find((p) => p.id === data.id && p.is_active);
+    return found ? attachGalleryToProduct(found) : null;
   });
 
 /**
  * Admin: List all products (active and inactive) for inventory management
  */
-export const adminListAllProducts = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = serverClient();
-  if (sb) {
-    try {
-      const { data: rows, error } = await sb
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && rows && rows.length > 0) {
-        return rows;
+export const adminListAllProducts = createServerFn({ method: "GET" })
+  .inputValidator((data: { adminPin?: string } | undefined) => data ?? {})
+  .handler(async ({ data }) => {
+    await requireAdminGuard(data?.adminPin);
+
+    const sb = serverClient();
+    if (sb) {
+      try {
+        const { data: rows, error } = await sb
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (!error && rows && rows.length > 0) {
+          return (rows as Product[]).map(attachGalleryToProduct);
+        }
+      } catch (err) {
+        console.warn("[Admin Products] Supabase query failed, using fallback:", err);
       }
-    } catch (err) {
-      console.warn("[Admin Products] Supabase query failed, using fallback:", err);
     }
-  }
-  return MOCK_PRODUCTS;
-});
+    return MOCK_PRODUCTS.map(attachGalleryToProduct);
+  });
 
 /**
  * Admin: Update product details (stock, price, is_active, is_featured)
@@ -102,9 +121,12 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
       original_price?: number | null;
       is_active?: boolean;
       is_featured?: boolean;
+      adminPin?: string;
     }) => data,
   )
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     // 1. Update in-memory mock products
     const inMem = MOCK_PRODUCTS.find((p) => p.id === data.id);
     if (inMem) {
@@ -150,14 +172,29 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       original_price?: number | null;
       stock: number;
       image_url?: string;
+      gallery_images?: string[];
       description?: string;
       is_featured?: boolean;
       is_active?: boolean;
+      adminPin?: string;
     }) => data,
   )
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
+
+    const rawDesc = data.description ? cleanProductDescription(data.description) : "";
+    const galleryTag =
+      data.gallery_images && data.gallery_images.length > 1
+        ? encodeProductGallery(data.gallery_images)
+        : "";
+    const finalDescription = galleryTag
+      ? rawDesc
+        ? `${rawDesc}\n\n${galleryTag}`
+        : galleryTag
+      : rawDesc || null;
 
     const newProduct: Product = {
       id: newId,
@@ -167,7 +204,9 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
       stock: Math.max(0, Number(data.stock) || 0),
       image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
-      description: data.description?.trim() || null,
+      gallery_images:
+        data.gallery_images && data.gallery_images.length > 1 ? data.gallery_images : undefined,
+      description: finalDescription,
       is_featured: data.is_featured ?? false,
       is_active: data.is_active ?? true,
       created_at: now,
@@ -216,14 +255,43 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
       original_price?: number | null;
       stock: number;
       image_url?: string;
+      gallery_images?: string[];
       description?: string;
       is_featured?: boolean;
       is_active?: boolean;
+      adminPin?: string;
     }) => data,
   )
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     const idx = MOCK_PRODUCTS.findIndex((p) => p.id === data.id);
     const now = new Date().toISOString();
+
+    const rawDesc =
+      data.description !== undefined
+        ? cleanProductDescription(data.description)
+        : idx !== -1
+          ? cleanProductDescription(MOCK_PRODUCTS[idx].description)
+          : "";
+
+    const galleryImagesToUse =
+      data.gallery_images !== undefined
+        ? data.gallery_images
+        : idx !== -1
+          ? (MOCK_PRODUCTS[idx].gallery_images ?? undefined)
+          : undefined;
+
+    const galleryTag =
+      galleryImagesToUse && galleryImagesToUse.length > 1
+        ? encodeProductGallery(galleryImagesToUse)
+        : "";
+
+    const finalDescription = galleryTag
+      ? rawDesc
+        ? `${rawDesc}\n\n${galleryTag}`
+        : galleryTag
+      : rawDesc || null;
 
     let updated: Product;
     if (idx !== -1) {
@@ -235,8 +303,9 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
         original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
         stock: Math.max(0, Number(data.stock) || 0),
         image_url: data.image_url?.trim() || MOCK_PRODUCTS[idx].image_url,
-        description:
-          data.description !== undefined ? data.description : MOCK_PRODUCTS[idx].description,
+        gallery_images:
+          galleryImagesToUse && galleryImagesToUse.length > 1 ? galleryImagesToUse : undefined,
+        description: finalDescription,
         is_featured: data.is_featured ?? MOCK_PRODUCTS[idx].is_featured,
         is_active: data.is_active ?? MOCK_PRODUCTS[idx].is_active,
         updated_at: now,
@@ -251,7 +320,9 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
         original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
         stock: Math.max(0, Number(data.stock) || 0),
         image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
-        description: data.description || null,
+        gallery_images:
+          galleryImagesToUse && galleryImagesToUse.length > 1 ? galleryImagesToUse : undefined,
+        description: finalDescription,
         is_featured: data.is_featured ?? false,
         is_active: data.is_active ?? true,
         created_at: now,
@@ -290,8 +361,10 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
  * Admin: Duplicate existing product
  */
 export const adminDuplicateProduct = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string }) => data)
+  .inputValidator((data: { id: string; adminPin?: string }) => data)
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     const original = MOCK_PRODUCTS.find((p) => p.id === data.id);
     if (!original) {
       throw new Error("المنتج الأصلي غير موجود");
@@ -339,8 +412,10 @@ export const adminDuplicateProduct = createServerFn({ method: "POST" })
  * Admin: Delete / Remove a product
  */
 export const adminDeleteProduct = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string }) => data)
+  .inputValidator((data: { id: string; adminPin?: string }) => data)
   .handler(async ({ data }) => {
+    await requireAdminGuard(data.adminPin);
+
     const idx = MOCK_PRODUCTS.findIndex((p) => p.id === data.id);
     if (idx !== -1) {
       MOCK_PRODUCTS.splice(idx, 1);
