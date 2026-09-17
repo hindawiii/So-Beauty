@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ShoppingCart,
   Heart,
   Check,
-  Eye,
   RotateCw,
   ChevronLeft,
   ChevronRight,
@@ -16,7 +15,6 @@ import { resolveProductImage, extractProductGallery } from "@/lib/product-images
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCurrency } from "@/context/CurrencyContext";
-import { QuickViewDialog } from "@/components/QuickViewDialog";
 import { toast } from "sonner";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 
@@ -33,11 +31,11 @@ export interface ProductCardProduct {
 }
 
 export function ProductCard({ product }: { product: ProductCardProduct }) {
+  const navigate = useNavigate();
   const { settings } = useStoreSettings();
   const { add } = useCart();
   const { isInWishlist, toggle } = useWishlist();
   const { formatPrice, formatBoth } = useCurrency();
-  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
@@ -137,6 +135,15 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
     setIsFlipped((prev) => !prev);
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only navigate if the target is not an interactive button/link/input
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest("button, a, input, select, textarea")) {
+      return;
+    }
+    navigate({ to: "/products/$id", params: { id: product.id } });
+  };
+
   return (
     <div
       className={`relative w-full h-full ${
@@ -152,7 +159,8 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
       >
         {/* ================= FRONT CARD FACE ================= */}
         <article
-          className={`group bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/70 hover:border-primary/30 transition-all duration-300 flex flex-col h-full relative ${cardMotionClass} ${
+          onClick={handleCardClick}
+          className={`group bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/70 hover:border-primary/30 transition-all duration-300 flex flex-col h-full relative cursor-pointer ${cardMotionClass} ${
             isFlipEnabled ? "flip-card-front w-full" : ""
           }`}
         >
@@ -249,8 +257,8 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
               />
             </button>
 
-            {/* Flip Card Toggle Button OR Quick View Button */}
-            {isFlipEnabled ? (
+            {/* Flip Card Toggle Button (Only if enabled in theme settings) */}
+            {isFlipEnabled && (
               <button
                 type="button"
                 onClick={toggleFlip}
@@ -259,20 +267,6 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
               >
                 <RotateCw className="w-3 h-3 text-amber-300" />
                 <span>المواصفات</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsQuickViewOpen(true);
-                }}
-                className="hidden md:flex absolute bottom-2.5 end-2.5 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 hover:text-primary hover:scale-105 items-center justify-center shadow-xs opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                title="معاينة سريعة"
-                aria-label={`معاينة سريعة لـ ${product.name}`}
-              >
-                <Eye className="w-3.5 h-3.5" />
               </button>
             )}
 
@@ -361,7 +355,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
                   isOutOfStock
                     ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     : justAdded
-                      ? "bg-emerald-600 text-white shadow-emerald-500/20"
+                      ? "bg-emerald-600 text-white shadow-emerald-500/20 animate-cart-success"
                       : "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-xs"
                 }`}
                 aria-label={isOutOfStock ? "المنتج غير متوفر" : "أضف إلى السلة"}
@@ -456,13 +450,6 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
           </article>
         )}
       </div>
-
-      {/* Full-Screen Immersive Quick View Modal */}
-      <QuickViewDialog
-        product={product}
-        isOpen={isQuickViewOpen}
-        onClose={() => setIsQuickViewOpen(false)}
-      />
     </div>
   );
 }

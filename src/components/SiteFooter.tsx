@@ -15,24 +15,34 @@ import {
   HeartHandshake,
 } from "lucide-react";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function SiteFooter() {
   const { settings } = useStoreSettings();
+  const { t, isRTL } = useLanguage();
 
   // Column 2: Shopping & Catalog discovery
   const catalogLinks = [
-    { to: "/", label: "الصفحة الرئيسية", Icon: Home },
-    { to: "/products", label: "تصفح الكتالوج بالكامل", Icon: Store },
-    { to: "/products", label: "العناية الطبيعية بالبشرة", Icon: Sparkles },
-    { to: "/products", label: "أحدث العروض والبكجات", Icon: Truck },
+    { to: "/", label: t("nav.home"), Icon: Home },
+    { to: "/products", label: isRTL ? "تصفح الكتالوج بالكامل" : "Browse All Catalog", Icon: Store },
+    { to: "/products", label: t("nav.skinCare"), Icon: Sparkles },
+    { to: "/products", label: t("nav.offers"), Icon: Truck },
   ] as const;
 
   // Column 3: Customer Care, Delivery & Trust
   const customerCareLinks = [
-    { to: "/track-order", label: "تتبع شحنتك المباشرة", Icon: Truck },
-    { to: "/about", label: "من نحن وقصة المتجر", Icon: Info },
-    { to: "/privacy", label: "سياسة الخصوصية وسرية البيانات", Icon: ShieldCheck },
-    { to: "/terms", label: "الشروط والأحكام وسياسة الشراء", Icon: RotateCcw },
+    { to: "/track-order", label: t("nav.trackOrder"), Icon: Truck },
+    { to: "/about", label: isRTL ? "من نحن وقصة المتجر" : "About Our Store", Icon: Info },
+    {
+      to: "/privacy",
+      label: isRTL ? "سياسة الخصوصية وسرية البيانات" : "Privacy Policy",
+      Icon: ShieldCheck,
+    },
+    {
+      to: "/terms",
+      label: isRTL ? "الشروط والأحكام وسياسة الشراء" : "Terms & Conditions",
+      Icon: RotateCcw,
+    },
   ] as const;
 
   const contactItems = [
@@ -213,27 +223,28 @@ export function SiteFooter() {
       <div className="border-t border-white/15 py-5 px-4 relative bg-black/10">
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-start text-xs text-white/80">
           <p>
-            © {new Date().getFullYear()} {settings.storeName || "المتجر الإلكتروني"}. جميع الحقوق
-            محفوظة.
+            © {new Date().getFullYear()}{" "}
+            {settings.storeName || (isRTL ? "المتجر الإلكتروني" : "Online Store")}.{" "}
+            {isRTL ? "جميع الحقوق محفوظة." : "All rights reserved."}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-white/70">
             <Link
               to="/privacy"
               className="hover:text-white transition-colors underline-offset-4 hover:underline"
             >
-              سياسة الخصوصية
+              {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
             </Link>
             <span>•</span>
             <Link
               to="/terms"
               className="hover:text-white transition-colors underline-offset-4 hover:underline"
             >
-              الشروط والأحكام
+              {isRTL ? "الشروط والأحكام" : "Terms & Conditions"}
             </Link>
             <span>•</span>
-            <span>الدفع عند الاستلام</span>
+            <span>{isRTL ? "الدفع عند الاستلام" : "Cash on Delivery"}</span>
             <span>•</span>
-            <span>توصيل سريع</span>
+            <span>{isRTL ? "توصيل سريع" : "Fast Delivery"}</span>
           </div>
         </div>
       </div>

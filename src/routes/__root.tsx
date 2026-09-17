@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { StoreSettingsProvider } from "@/context/StoreSettingsContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -149,11 +150,13 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <StoreSettingsProvider>
-        <CurrencyProvider>
-          <Outlet />
-          <WhatsAppSupportButton />
-          <Toaster position="top-center" richColors />
-        </CurrencyProvider>
+        <LanguageProvider>
+          <CurrencyProvider>
+            <Outlet />
+            <WhatsAppSupportButton />
+            <Toaster position="top-center" richColors />
+          </CurrencyProvider>
+        </LanguageProvider>
       </StoreSettingsProvider>
     </QueryClientProvider>
   );

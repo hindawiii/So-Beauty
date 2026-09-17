@@ -67,6 +67,20 @@ export function StoreSettingsTab() {
     return PRESET_BLUEPRINTS;
   });
 
+  // Sync formData when external settings (like adminPin updated from AdminPinManagerCard) change
+  useEffect(() => {
+    setFormData((prev) => {
+      // Keep user's dirty edits while safely syncing adminPin and external properties
+      if (hasUnsavedChanges) {
+        return {
+          ...prev,
+          adminPin: settings.adminPin,
+        };
+      }
+      return settings;
+    });
+  }, [settings, hasUnsavedChanges]);
+
   const handleChange = <K extends keyof StoreBrandingSettings>(
     key: K,
     value: StoreBrandingSettings[K],
@@ -152,7 +166,11 @@ export function StoreSettingsTab() {
   };
 
   const handleSave = () => {
-    updateSettings(formData);
+    // Ensure the latest adminPin is always preserved so saving branding doesn't accidentally overwrite it
+    updateSettings({
+      ...formData,
+      adminPin: settings.adminPin || formData.adminPin,
+    });
     setHasUnsavedChanges(false);
     toast.success("تم حفظ إعدادات وهوية المتجر وإنشاء نقطة استعادة احتياطية تلقائياً ✨");
   };
@@ -421,6 +439,9 @@ export function StoreSettingsTab() {
               </div>
             </div>
           </div>
+
+          {/* Admin PIN Management Card */}
+          <AdminPinManagerCard variant="developer" />
 
           {/* Card 2: Contact & WhatsApp Commerce */}
           <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import {
   ShieldCheck,
   CreditCard,
@@ -21,11 +21,14 @@ import skinGlow from "@/assets/skin-glow.jpg";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
+import { BentoProductsGrid, CarouselProducts } from "@/components/BentoProductsGrid";
 import { listProducts } from "@/lib/products.functions";
 import { Button } from "@/components/ui/button";
 import { AddReviewDialog } from "@/components/AddReviewDialog";
 import { getReviews, Review, INITIAL_REVIEWS } from "@/lib/reviews";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useBiDirectionalSwipe } from "@/hooks/useBiDirectionalSwipe";
 
 const featuredQuery = queryOptions({
   queryKey: ["products", "featured"],
@@ -47,6 +50,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { settings } = useStoreSettings();
+  const { t } = useLanguage();
 
   const heroTitle = settings.heroTitle || "جمالكِ الطبيعي يبدأ من هنا";
   const heroSubtitle =
@@ -134,13 +138,22 @@ function Index() {
         {/* Featured Products */}
         <section className="container mx-auto px-4 py-12">
           <div className="flex justify-between items-baseline mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">منتجاتنا المميزة</h2>
-            <Link to="/products" className="text-primary font-semibold flex items-center gap-1">
-              عرض الكل <ArrowLeft className="w-4 h-4" />
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold">{t("home.featuredTitle")}</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {t("home.featuredSubtitle")}
+              </p>
+            </div>
+            <Link
+              to="/products"
+              className="text-primary font-semibold flex items-center gap-1 text-xs sm:text-sm hover:underline"
+            >
+              <span>{t("common.viewAll")}</span>
+              <ArrowLeft className="w-4 h-4 rtl:rotate-0 rotate-180" />
             </Link>
           </div>
           <Suspense
-            fallback={<div className="py-8 text-center text-slate-400">جاري تحميل المنتجات...</div>}
+            fallback={<div className="py-8 text-center text-slate-400">{t("common.loading")}</div>}
           >
             <FeaturedProducts />
           </Suspense>
@@ -303,12 +316,120 @@ function CustomerReviewsSection() {
 }
 
 function FeaturedProducts() {
-  const { data } = useSuspenseQuery(featuredQuery);
+  const { settings } = useStoreSettings();
+  const { t } = useLanguage();
+  const { data: allProducts } = useSuspenseQuery(featuredQuery);
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(allProducts.map((p) => p.category?.trim()).filter(Boolean))) as string[],
+    [allProducts],
+  );
+
+  // Ordered filter sequence for fluid swipe gestures
+  const filterList = useMemo(() => ["all", "offers", ...categories], [categories]);
+
+  const handleSwipeNext = useCallback(() => {
+    const currentIndex = filterList.indexOf(selectedFilter);
+    if (currentIndex < filterList.length - 1) {
+      setSelectedFilter(filterList[currentIndex + 1]);
+    }
+  }, [filterList, selectedFilter]);
+
+  const handleSwipePrev = useCallback(() => {
+    const currentIndex = filterList.indexOf(selectedFilter);
+    if (currentIndex > 0) {
+      setSelectedFilter(filterList[currentIndex - 1]);
+    }
+  }, [filterList, selectedFilter]);
+
+  // Hook up fluid gestures with vertical scroll locking & RTL intelligence
+  const swipeHandlers = useBiDirectionalSwipe({
+    onSwipeNext: handleSwipeNext,
+    onSwipePrev: handleSwipePrev,
+    threshold: 45,
+  });
+
+  const filtered =
+    selectedFilter === "all"
+      ? allProducts.slice(0, 8)
+      : selectedFilter === "offers"
+        ? allProducts
+            .filter((p) => p.original_price != null && Number(p.original_price) > Number(p.price))
+            .slice(0, 8)
+        : allProducts.filter((p) => p.category === selectedFilter).slice(0, 8);
+
+  const layout = settings.homepageProductsLayout || "grid";
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {data.slice(0, 8).map((p) => (
-        <ProductCard key={p.id} product={p} />
-      ))}
+    <div className="space-y-6" {...swipeHandlers}>
+      {/* Interactive Category Filter Pills with quick touch scroll */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSelectedFilter("all")}
+            className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+              selectedFilter === "all"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            }`}
+          >
+            {t("home.allCategories")} ({allProducts.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedFilter("offers")}
+            className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 flex items-center gap-1 ${
+              selectedFilter === "offers"
+                ? "bg-rose-600 text-white shadow-xs"
+                : "bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>{t("home.offersCategory")}</span>
+          </button>
+
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedFilter(cat)}
+              className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                selectedFilter === cat
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Subtle touch swipe indicator hint for mobile devices */}
+        <span className="hidden sm:inline-flex text-[11px] text-muted-foreground whitespace-nowrap opacity-75 font-medium items-center gap-1">
+          <span>👈 {t("home.swipeTip")} 👉</span>
+        </span>
+      </div>
+
+      {/* Render layout based on settings: bento, carousel, or grid */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <p className="text-xs sm:text-sm text-slate-500">{t("common.noResults")}</p>
+        </div>
+      ) : layout === "bento" ? (
+        <BentoProductsGrid products={filtered} />
+      ) : layout === "carousel" ? (
+        <CarouselProducts products={filtered} />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-all duration-300">
+          {filtered.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

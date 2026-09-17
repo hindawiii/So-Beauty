@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { generatePaletteFromHex } from "@/lib/colorUtils";
 
 export interface StoreBrandingSettings {
   storeName: string;
@@ -59,6 +60,11 @@ export interface StoreBrandingSettings {
   cardMotionStyle?: "tilt" | "jump" | "shake" | "rotate" | "flip" | "none";
   enableInCardSlider?: boolean;
   enableQuickPeek?: boolean;
+
+  // Phase 3: Modular Sections & Modern Display Layouts
+  homepageProductsLayout?: "grid" | "carousel" | "bento";
+  showGiftBoxesSection?: boolean;
+  showFaqSection?: boolean;
 
   // Phase 3: Security & Kill-Switch
   developerPortalLocked?: boolean;
@@ -137,6 +143,13 @@ interface StoreSettingsContextType {
   restoreFromManualBackup: () => boolean;
   hasBackup: boolean;
   getWhatsAppUrl: (message?: string) => string;
+  // Sandbox preview mode
+  previewSettings: Partial<StoreBrandingSettings> | null;
+  isPreviewMode: boolean;
+  previewThemeTitle: string | null;
+  startSandboxPreview: (previewSettings: Partial<StoreBrandingSettings>, title: string) => void;
+  commitSandboxPreview: () => void;
+  cancelSandboxPreview: () => void;
 }
 
 const StoreSettingsContext = createContext<StoreSettingsContextType | null>(null);
@@ -160,28 +173,67 @@ export function StoreSettingsProvider({ children }: { children: React.ReactNode 
     return !!localStorage.getItem(BACKUP_STORAGE_KEY);
   });
 
+  // Sandbox preview state
+  const [previewSettings, setPreviewSettings] = useState<Partial<StoreBrandingSettings> | null>(
+    () => {
+      if (typeof window === "undefined") return null;
+      try {
+        const sess = sessionStorage.getItem("so_beauty_sandbox_preview");
+        return sess ? JSON.parse(sess) : null;
+      } catch {
+        return null;
+      }
+    },
+  );
+
+  const [previewThemeTitle, setPreviewThemeTitle] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("so_beauty_sandbox_preview_title");
+  });
+
+  // Effective settings are merged: preview overrides settings when in sandbox
+  const effectiveSettings = useMemo(() => {
+    if (!previewSettings) return settings;
+    return { ...settings, ...previewSettings };
+  }, [settings, previewSettings]);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-
-      // Dynamically apply primary color & font CSS variables if defined
-      if (typeof document !== "undefined") {
-        if (settings.themeColorOklch) {
-          document.documentElement.style.setProperty("--primary", settings.themeColorOklch);
-          document.documentElement.style.setProperty("--brand", settings.themeColorOklch);
-          document.documentElement.style.setProperty("--ring", settings.themeColorOklch);
-        }
-        if (settings.fontDisplay) {
-          document.documentElement.style.setProperty("--font-display", settings.fontDisplay);
-        }
-        if (settings.storeName) {
-          document.title = `${settings.storeName} — ${settings.tagline || "تسوق أونلاين"}`;
-        }
-      }
     } catch (e) {
       console.warn("Failed to persist store settings:", e);
     }
   }, [settings]);
+
+  useEffect(() => {
+    // Dynamically apply primary color & font CSS variables based on effective settings
+    if (typeof document !== "undefined") {
+      let activeOklch = effectiveSettings.themeColorOklch;
+      let activeSoft = "oklch(0.96 0.025 300)";
+      let activeDeep = "oklch(0.22 0.05 295)";
+
+      if (effectiveSettings.themeColorHex) {
+        const generated = generatePaletteFromHex(effectiveSettings.themeColorHex);
+        activeOklch = effectiveSettings.themeColorOklch || generated.oklch;
+        activeSoft = generated.softOklch;
+        activeDeep = generated.deepOklch;
+      }
+
+      if (activeOklch) {
+        document.documentElement.style.setProperty("--primary", activeOklch);
+        document.documentElement.style.setProperty("--brand", activeOklch);
+        document.documentElement.style.setProperty("--ring", activeOklch);
+        document.documentElement.style.setProperty("--brand-soft", activeSoft);
+        document.documentElement.style.setProperty("--brand-deep", activeDeep);
+      }
+      if (effectiveSettings.fontDisplay) {
+        document.documentElement.style.setProperty("--font-display", effectiveSettings.fontDisplay);
+      }
+      if (effectiveSettings.storeName) {
+        document.title = `${effectiveSettings.storeName} — ${effectiveSettings.tagline || "تسوق أونلاين"}`;
+      }
+    }
+  }, [effectiveSettings]);
 
   const updateSettings = (newSettings: Partial<StoreBrandingSettings>) => {
     // Auto snapshot current state before updating
@@ -192,6 +244,31 @@ export function StoreSettingsProvider({ children }: { children: React.ReactNode 
       console.warn("Failed to create auto backup:", e);
     }
     setSettings((prev) => ({ ...prev, ...newSettings }));
+  };
+
+  const startSandboxPreview = (override: Partial<StoreBrandingSettings>, title: string) => {
+    setPreviewSettings(override);
+    setPreviewThemeTitle(title);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("so_beauty_sandbox_preview", JSON.stringify(override));
+      sessionStorage.setItem("so_beauty_sandbox_preview_title", title);
+    }
+  };
+
+  const commitSandboxPreview = () => {
+    if (previewSettings) {
+      updateSettings(previewSettings);
+      cancelSandboxPreview();
+    }
+  };
+
+  const cancelSandboxPreview = () => {
+    setPreviewSettings(null);
+    setPreviewThemeTitle(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("so_beauty_sandbox_preview");
+      sessionStorage.removeItem("so_beauty_sandbox_preview_title");
+    }
   };
 
   // Restore the original So Beauty settings
@@ -241,13 +318,19 @@ export function StoreSettingsProvider({ children }: { children: React.ReactNode 
   return (
     <StoreSettingsContext.Provider
       value={{
-        settings,
+        settings: effectiveSettings,
         updateSettings,
         resetToGoldenSnapshot,
         createManualBackup,
         restoreFromManualBackup,
         hasBackup,
         getWhatsAppUrl,
+        previewSettings,
+        isPreviewMode: !!previewSettings,
+        previewThemeTitle,
+        startSandboxPreview,
+        commitSandboxPreview,
+        cancelSandboxPreview,
       }}
     >
       {children}
@@ -265,6 +348,12 @@ export function useStoreSettings() {
       createManualBackup: () => {},
       restoreFromManualBackup: () => false,
       hasBackup: false,
+      previewSettings: null,
+      isPreviewMode: false,
+      previewThemeTitle: null,
+      startSandboxPreview: () => {},
+      commitSandboxPreview: () => {},
+      cancelSandboxPreview: () => {},
       getWhatsAppUrl: (msg?: string) => {
         const rawNumber = DEFAULT_STORE_SETTINGS.whatsappNumber.replace(/[^0-9]/g, "");
         const fallbackMsg = msg || `مرحباً ${DEFAULT_STORE_SETTINGS.storeName} 🌸`;

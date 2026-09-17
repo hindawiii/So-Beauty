@@ -14,6 +14,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { LuxePinBoxes } from "@/components/LuxePinBoxes";
 import { StoreSettingsTab } from "@/components/StoreSettingsTab";
+import { AdminPinManagerCard } from "@/components/AdminPinManagerCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
@@ -221,6 +222,9 @@ function DeveloperDashboardPage() {
               </Button>
             </div>
           </div>
+
+          {/* Master PIN Manager Card - Quick Access for Developer */}
+          <AdminPinManagerCard variant="developer" />
 
           {/* Store Settings & Niche Management Tab */}
           <StoreSettingsTab />

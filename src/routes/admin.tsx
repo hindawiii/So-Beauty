@@ -69,6 +69,9 @@ import { LuxeAddProductModal, CreateProductPayload } from "@/components/LuxeAddP
 import { LuxeEditProductModal, UpdateProductPayload } from "@/components/LuxeEditProductModal";
 import { LuxePinBoxes } from "@/components/LuxePinBoxes";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
+import { StoreThemingTab } from "@/components/StoreThemingTab";
+import { AdminPinManagerCard } from "@/components/AdminPinManagerCard";
+import { Palette, Settings } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -128,7 +131,9 @@ const STATUS_CONFIG: Record<
 
 function AdminDashboardPage() {
   const { settings } = useStoreSettings();
-  const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "inventory" | "theming" | "settings">(
+    "orders",
+  );
 
   // Admin PIN Gate State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -663,110 +668,152 @@ function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Top KPIs Summary Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {/* Top KPIs Summary Bar - Responsive Grid & 8pt spacing */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
           {/* Revenue */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">إجمالي المبيعات النشطة</p>
-              <h3 className="text-2xl font-bold text-slate-900">
+          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 mb-1 truncate">
+                إجمالي المبيعات النشطة
+              </p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 {totalRevenue.toLocaleString("ar-EG")}{" "}
                 <span className="text-xs font-normal text-slate-400">ج.م</span>
               </h3>
               <p className="text-[11px] text-emerald-600 mt-1 font-medium flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                <span>من الطلبات المؤكدة والمسلمة</span>
+                <TrendingUp className="w-3 h-3 shrink-0" />
+                <span className="truncate">طلبات مؤكدة ومسلمة</span>
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <DollarSign className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 ms-2">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
           {/* Orders Count */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">إجمالي عدد الطلبات</p>
-              <h3 className="text-2xl font-bold text-slate-900">{orders.length}</h3>
-              <p className="text-[11px] text-slate-400 mt-1">مسجلة عبر المتجر وواتساب</p>
+          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 mb-1 truncate">إجمالي عدد الطلبات</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {orders.length}
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-1 truncate">مسجلة عبر المتجر وواتساب</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 ms-2">
+              <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
           {/* Pending Orders */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">طلبات بانتظار التأكيد</p>
-              <h3 className="text-2xl font-bold text-amber-600">{pendingCount}</h3>
-              <p className="text-[11px] text-amber-600/80 mt-1 font-medium">تحتاج تواصل وتجهيز</p>
+          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 mb-1 truncate">
+                طلبات بانتظار التأكيد
+              </p>
+              <h3 className="text-xl sm:text-2xl font-bold text-amber-600 tracking-tight">
+                {pendingCount}
+              </h3>
+              <p className="text-[11px] text-amber-600/80 mt-1 font-medium truncate">
+                تحتاج تواصل وتجهيز
+              </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 ms-2">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
           {/* Low Stock */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">منتجات أوشكت على النفاد</p>
+          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 mb-1 truncate">
+                منتجات قاربت على النفاد
+              </p>
               <h3
-                className={`text-2xl font-bold ${lowStockCount > 0 ? "text-rose-600" : "text-slate-900"}`}
+                className={`text-xl sm:text-2xl font-bold tracking-tight ${lowStockCount > 0 ? "text-rose-600" : "text-slate-900"}`}
               >
                 {lowStockCount}
               </h3>
-              <p className="text-[11px] text-slate-400 mt-1">الرصيد أقل من 10 قطع</p>
+              <p className="text-[11px] text-slate-400 mt-1 truncate">الرصيد 10 قطع أو أقل</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Layers className="w-6 h-6" />
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 ms-2">
+              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
           {/* Average Rating & Reviews */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">متوسط تقييمات العملاء</p>
+          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between sm:col-span-2 md:col-span-1">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500 mb-1 truncate">
+                متوسط تقييمات المتجر
+              </p>
               <div className="flex items-baseline gap-1.5">
-                <h3 className="text-2xl font-bold text-slate-900">{averageRating.toFixed(1)}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  {averageRating.toFixed(1)}
+                </h3>
                 <span className="text-xs text-amber-500 font-bold">★ / 5</span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                بناءً على {reviewsCount} مراجعة معتمدة
+              <p className="text-[11px] text-slate-400 mt-1 truncate">
+                بناءً على {reviewsCount} مراجعة
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 ms-2">
               <Star className="w-6 h-6 fill-amber-400 text-amber-500" />
             </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200/80 mb-6 pb-2">
+        {/* Navigation Tabs - Modern Responsive Segmented Pill Tabs */}
+        <div className="bg-slate-100/90 dark:bg-slate-800/90 p-1.5 rounded-2xl border border-slate-200/80 mb-6 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
           <button
             type="button"
             onClick={() => setActiveTab("orders")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "orders"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>إدارة شحنات وطلبات الشراء ({orders.length})</span>
+            <ShoppingBag className="w-4 h-4 text-primary shrink-0" />
+            <span>الشحنات والطلبات ({orders.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("inventory")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "inventory"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
-            <Package className="w-4 h-4" />
+            <Package className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>المنتجات والمخزون ({products.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("theming")}
+            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+              activeTab === "theming"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <Palette className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>🎨 القوالب والهوية</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("settings")}
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+              activeTab === "settings"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <KeyRound className="w-4 h-4 text-rose-500 shrink-0" />
+            <span>🔐 كلمة سر الإدارة والأمان</span>
           </button>
         </div>
 
@@ -893,36 +940,42 @@ function AdminDashboardPage() {
                   return (
                     <div
                       key={order.id}
-                      className="bg-card border border-slate-200/80 rounded-2xl p-5 shadow-xs transition-all hover:border-slate-300"
+                      className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs transition-all hover:border-slate-300 space-y-3.5"
                     >
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-100">
+                      {/* Top Header: Customer Info + Current Status Pill */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                         {/* Order ID & Customer */}
                         <div className="flex items-start sm:items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                          <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary font-mono text-xs font-bold flex items-center justify-center shrink-0 border border-primary/20">
                             #{order.id.slice(0, 4)}
                           </div>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-slate-900 text-sm sm:text-base">
                                 {order.full_name}
                               </span>
-                              <span className="font-mono text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                                {order.id.slice(0, 8)}...
+                              <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {order.id.slice(0, 8)}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                              <span className="flex items-center gap-1 font-mono" dir="ltr">
-                                <Phone className="w-3 h-3 text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
+                              <span
+                                className="flex items-center gap-1 font-mono font-medium text-slate-700"
+                                dir="ltr"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
                                 {order.phone}
                               </span>
-                              <span>•</span>
+                              <span className="text-slate-300">•</span>
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 text-slate-400" />
-                                {order.city} — {order.shipping_address}
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[200px] sm:max-w-none">
+                                  {order.city} — {order.shipping_address}
+                                </span>
                               </span>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400" />
+                              <span className="text-slate-300">•</span>
+                              <span className="flex items-center gap-1 text-slate-400">
+                                <Calendar className="w-3.5 h-3.5" />
                                 {new Date(order.created_at).toLocaleDateString("ar-EG", {
                                   month: "short",
                                   day: "numeric",
@@ -934,16 +987,25 @@ function AdminDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Status Switcher Controls */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        {/* Current Status Badge */}
+                        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${conf.bg} ${conf.text} ${conf.border}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border shrink-0 shadow-2xs ${conf.bg} ${conf.text} ${conf.border}`}
                           >
                             <StatusIcon className="w-3.5 h-3.5" />
                             <span>{conf.label}</span>
                           </span>
+                        </div>
+                      </div>
 
-                          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl">
+                      {/* Middle Row: Status Transition Switcher + Quick Actions */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70 p-2.5 sm:p-3 rounded-xl border border-slate-100">
+                        {/* Status Switcher Pills */}
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <span className="text-[11px] font-semibold text-slate-500 block">
+                            تحديث حالة الطلب:
+                          </span>
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-full">
                             {(
                               [
                                 { key: "pending", label: "مراجعة" },
@@ -958,18 +1020,21 @@ function AdminDashboardPage() {
                                 type="button"
                                 disabled={isUpdating || order.status === btn.key}
                                 onClick={() => handleUpdateStatus(order.id, btn.key)}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                                className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[36px] ${
                                   order.status === btn.key
-                                    ? "bg-white text-slate-900 shadow-xs font-bold cursor-default"
-                                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                                    ? "bg-slate-900 text-white shadow-xs font-bold cursor-default dark:bg-white dark:text-slate-900"
+                                    : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 border border-slate-200/60"
                                 }`}
                               >
                                 {btn.label}
                               </button>
                             ))}
                           </div>
+                        </div>
 
-                          {/* WhatsApp Customer Direct button */}
+                        {/* Customer Direct Contact Action Buttons (Mobile-first Touch Target >= 40px) */}
+                        <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60 shrink-0">
+                          {/* WhatsApp Direct */}
                           <a
                             href={getCustomerWhatsAppUrl(
                               order.phone,
@@ -977,20 +1042,20 @@ function AdminDashboardPage() {
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold transition-colors cursor-pointer"
+                            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                             title="مراسلة العميل مباشرة عبر واتساب"
                           >
-                            <WhatsAppEmblemIcon size={14} className="text-emerald-600" />
-                            <span>واتساب العميل</span>
+                            <WhatsAppEmblemIcon size={16} className="text-white shrink-0" />
+                            <span>واتساب</span>
                           </a>
 
                           {/* Phone Direct Call */}
                           <a
                             href={`tel:${order.phone.replace(/[^0-9+]/g, "")}`}
-                            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-colors cursor-pointer"
+                            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 text-xs font-bold transition-all cursor-pointer"
                             title="اتصال هاتفي مباشر بالعميل"
                           >
-                            <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
+                            <PhoneCall className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                             <span>اتصال</span>
                           </a>
 
@@ -1016,23 +1081,23 @@ function AdminDashboardPage() {
                               navigator.clipboard.writeText(summary);
                               toast.success("تم نسخ ملخص الطلب بالكامل للحافظة بنجاح!");
                             }}
-                            className="inline-flex items-center gap-1 h-8 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                            className="inline-flex items-center justify-center gap-1 h-10 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium transition-colors cursor-pointer"
                             title="نسخ ملخص الطلب لمشاركته مع مندوب التوصيل"
                           >
-                            <Copy className="w-3 h-3 text-slate-500" />
-                            <span className="hidden sm:inline">نسخ</span>
+                            <Copy className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="hidden sm:inline">نسخ الملخص</span>
                           </button>
                         </div>
                       </div>
 
                       {/* Items Ordered List */}
-                      <div className="bg-slate-50/70 rounded-xl p-3">
+                      <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100">
                         <p className="text-xs font-bold text-slate-700 mb-2">محتويات الطلب:</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                           {order.order_items?.map((item) => (
                             <div
                               key={item.id}
-                              className="bg-white border border-slate-200/60 rounded-lg p-2 text-xs flex items-center justify-between"
+                              className="bg-white border border-slate-200/60 rounded-lg p-2 text-xs flex items-center justify-between shadow-2xs"
                             >
                               <span className="font-medium text-slate-800 truncate me-2">
                                 {item.product_name}
@@ -1046,13 +1111,13 @@ function AdminDashboardPage() {
                         </div>
 
                         {order.notes && (
-                          <div className="mt-2 text-xs text-amber-800 bg-amber-50/80 border border-amber-200/60 rounded-lg px-2.5 py-1.5">
+                          <div className="mt-2.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                             <strong>ملاحظة العميل:</strong> {order.notes}
                           </div>
                         )}
 
-                        <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 text-slate-600">
-                          <span>
+                        <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs pt-2.5 border-t border-slate-200/70 text-slate-600">
+                          <span className="text-slate-400 text-[11px]">
                             تنعكس الحالة تلقائياً للعميلة في صفحة تتبع الطلبات برقم الهاتف أو الكود
                           </span>
                           <span className="font-bold text-sm text-primary">
@@ -1369,226 +1434,424 @@ function AdminDashboardPage() {
                 })}
               </div>
             ) : (
-              /* TABLE VIEW: COMPACT MANAGEMENT */
-              <div className="bg-card border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-start text-xs sm:text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-600 font-bold">
-                        <th className="py-3 px-4 text-start">المنتج</th>
-                        <th className="py-3 px-4 text-start">الفئة</th>
-                        <th className="py-3 px-4 text-start">السعر (ج.م)</th>
-                        <th className="py-3 px-4 text-start">رصيد المخزون</th>
-                        <th className="py-3 px-4 text-center">مميز</th>
-                        <th className="py-3 px-4 text-start">حالة العرض</th>
-                        <th className="py-3 px-4 text-end">إجراءات وأدوات</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredProducts.map((prod) => {
-                        const isEditing = editingProductId === prod.id;
-                        const isLow = prod.stock <= 10;
+              /* COMPACT MANAGEMENT VIEW: RESPONSIVE CARDS ON MOBILE & TABLE ON TABLET/DESKTOP */
+              <div>
+                {/* Mobile Grouped Cards View (hidden on md+) */}
+                <div className="md:hidden space-y-3">
+                  {filteredProducts.map((prod) => {
+                    const isEditing = editingProductId === prod.id;
+                    const isLow = prod.stock <= 10;
 
-                        return (
-                          <tr key={prod.id} className="hover:bg-slate-50/50 transition-colors">
-                            {/* Product Info */}
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={prod.image_url}
-                                  alt={prod.name}
-                                  referrerPolicy="no-referrer"
-                                  className="w-11 h-11 rounded-xl object-cover bg-muted shrink-0 border border-slate-200/80"
-                                />
-                                <div>
-                                  <span className="font-bold text-slate-900 block">
-                                    {prod.name}
-                                  </span>
-                                  <span className="text-[11px] text-slate-400 block truncate max-w-xs">
-                                    {prod.description || "لا يوجد وصف مدخل بعد"}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Category */}
-                            <td className="py-3.5 px-4 text-slate-600">
-                              <span className="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium">
-                                {prod.category === "skincare"
-                                  ? "عناية بالبشرة"
-                                  : prod.category === "box"
-                                    ? "بوكس عناية"
-                                    : prod.category === "offer"
-                                      ? "عرض توفير"
-                                      : "ملحقات"}
+                    return (
+                      <div
+                        key={`mobile-prod-${prod.id}`}
+                        className="bg-card border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3"
+                      >
+                        {/* Top: Image, Name, Category */}
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={prod.image_url}
+                            alt={prod.name}
+                            referrerPolicy="no-referrer"
+                            className="w-14 h-14 rounded-xl object-cover bg-muted shrink-0 border border-slate-200/80"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-bold text-sm text-slate-900 truncate block">
+                                {prod.name}
                               </span>
-                            </td>
-
-                            {/* Price */}
-                            <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
-                              {isEditing ? (
-                                <Input
-                                  type="number"
-                                  value={editPrice}
-                                  onChange={(e) => setEditPrice(Number(e.target.value))}
-                                  className="w-24 h-8 text-xs font-mono"
-                                  min={0}
-                                />
-                              ) : (
-                                <div>
-                                  <span>{prod.price} ج.م</span>
-                                  {prod.original_price && prod.original_price > prod.price && (
-                                    <span className="block text-[11px] text-slate-400 line-through">
-                                      {prod.original_price} ج.م
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Stock */}
-                            <td className="py-3.5 px-4">
-                              {isEditing ? (
-                                <Input
-                                  type="number"
-                                  value={editStock}
-                                  onChange={(e) => setEditStock(Number(e.target.value))}
-                                  className="w-20 h-8 text-xs font-mono"
-                                  min={0}
-                                />
-                              ) : (
-                                <span
-                                  className={`inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-md text-xs ${
-                                    prod.stock === 0
-                                      ? "bg-rose-100 text-rose-700"
-                                      : isLow
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-emerald-50 text-emerald-700"
-                                  }`}
-                                >
-                                  {prod.stock === 0 && <XCircle className="w-3 h-3" />}
-                                  {prod.stock > 0 && isLow && <AlertTriangle className="w-3 h-3" />}
-                                  <span>{prod.stock} قطعة</span>
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Featured Toggle */}
-                            <td className="py-3.5 px-4 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleToggleProductFeatured(prod)}
-                                className={`p-1.5 rounded-lg transition-all inline-flex items-center gap-1 text-xs font-semibold ${
+                                className={`p-1 rounded-lg shrink-0 ${
                                   prod.is_featured
-                                    ? "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/80"
-                                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
+                                    ? "text-amber-500"
+                                    : "text-slate-300 hover:text-slate-500"
                                 }`}
-                                title={
-                                  prod.is_featured
-                                    ? "منتج مميز بالصفحة الرئيسية (انقر لإلغاء التمييز)"
-                                    : "تمييز المنتج في صدارة المتجر"
-                                }
+                                title={prod.is_featured ? "إلغاء التمييز" : "تمييز"}
                               >
                                 <Star
-                                  className={`w-4 h-4 ${
-                                    prod.is_featured
-                                      ? "fill-amber-400 text-amber-500"
-                                      : "text-slate-400"
-                                  }`}
+                                  className={`w-4 h-4 ${prod.is_featured ? "fill-amber-400" : ""}`}
                                 />
                               </button>
-                            </td>
+                            </div>
+                            <span className="inline-block bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[11px] font-medium mt-0.5">
+                              {prod.category === "skincare"
+                                ? "عناية بالبشرة"
+                                : prod.category === "box"
+                                  ? "بوكس عناية"
+                                  : prod.category === "offer"
+                                    ? "عرض توفير"
+                                    : "ملحقات"}
+                            </span>
+                          </div>
+                        </div>
 
-                            {/* Display status */}
-                            <td className="py-3.5 px-4">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleProductStatus(prod)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
-                                  prod.is_active
-                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        {/* Middle: Price, Stock, Display Status */}
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50/80 p-2.5 rounded-xl text-xs">
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">السعر:</span>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editPrice}
+                                onChange={(e) => setEditPrice(Number(e.target.value))}
+                                className="w-full h-8 text-xs font-mono mt-1"
+                                min={0}
+                              />
+                            ) : (
+                              <span className="font-bold text-slate-900 font-mono text-sm">
+                                {prod.price} ج.م
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">المخزون:</span>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editStock}
+                                onChange={(e) => setEditStock(Number(e.target.value))}
+                                className="w-full h-8 text-xs font-mono mt-1"
+                                min={0}
+                              />
+                            ) : (
+                              <span
+                                className={`inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded text-xs mt-0.5 ${
+                                  prod.stock === 0
+                                    ? "bg-rose-100 text-rose-700"
+                                    : isLow
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-emerald-50 text-emerald-700"
                                 }`}
                               >
-                                {prod.is_active ? (
-                                  <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span>معروض</span>
-                                  </>
+                                {prod.stock} قطعة
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bottom Actions */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleProductStatus(prod)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              prod.is_active
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {prod.is_active ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>معروض</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                                <span>مخفي</span>
+                              </>
+                            )}
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {isEditing ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveEditProduct(prod.id)}
+                                  className="h-8 px-3 rounded-lg text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>حفظ</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingProductId(null)}
+                                  className="h-8 px-2 rounded-lg text-xs"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingFullProduct(prod)}
+                                  className="h-8 px-2.5 rounded-lg text-xs gap-1 text-primary border-primary/30"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>تعديل شامل</span>
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleStartEditProduct(prod)}
+                                  className="h-8 px-2 rounded-lg text-xs text-slate-500"
+                                >
+                                  سريع
+                                </Button>
+
+                                <a
+                                  href={`/products/${prod.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800"
+                                  title="معاينة"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop & Tablet Table (hidden on mobile) */}
+                <div className="hidden md:block bg-card border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-start text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-600 font-bold">
+                          <th className="py-3 px-4 text-start">المنتج</th>
+                          <th className="py-3 px-4 text-start">الفئة</th>
+                          <th className="py-3 px-4 text-start">السعر (ج.م)</th>
+                          <th className="py-3 px-4 text-start">رصيد المخزون</th>
+                          <th className="py-3 px-4 text-center">مميز</th>
+                          <th className="py-3 px-4 text-start">حالة العرض</th>
+                          <th className="py-3 px-4 text-end">إجراءات وأدوات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredProducts.map((prod) => {
+                          const isEditing = editingProductId === prod.id;
+                          const isLow = prod.stock <= 10;
+
+                          return (
+                            <tr key={prod.id} className="hover:bg-slate-50/50 transition-colors">
+                              {/* Product Info */}
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={prod.image_url}
+                                    alt={prod.name}
+                                    referrerPolicy="no-referrer"
+                                    className="w-11 h-11 rounded-xl object-cover bg-muted shrink-0 border border-slate-200/80"
+                                  />
+                                  <div>
+                                    <span className="font-bold text-slate-900 block">
+                                      {prod.name}
+                                    </span>
+                                    <span className="text-[11px] text-slate-400 block truncate max-w-xs">
+                                      {prod.description || "لا يوجد وصف مدخل بعد"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Category */}
+                              <td className="py-3.5 px-4 text-slate-600">
+                                <span className="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium">
+                                  {prod.category === "skincare"
+                                    ? "عناية بالبشرة"
+                                    : prod.category === "box"
+                                      ? "بوكس عناية"
+                                      : prod.category === "offer"
+                                        ? "عرض توفير"
+                                        : "ملحقات"}
+                                </span>
+                              </td>
+
+                              {/* Price */}
+                              <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
+                                {isEditing ? (
+                                  <Input
+                                    type="number"
+                                    value={editPrice}
+                                    onChange={(e) => setEditPrice(Number(e.target.value))}
+                                    className="w-24 h-8 text-xs font-mono"
+                                    min={0}
+                                  />
                                 ) : (
-                                  <>
-                                    <XCircle className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>مخفي</span>
-                                  </>
+                                  <div>
+                                    <span>{prod.price} ج.م</span>
+                                    {prod.original_price && prod.original_price > prod.price && (
+                                      <span className="block text-[11px] text-slate-400 line-through">
+                                        {prod.original_price} ج.م
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
-                              </button>
-                            </td>
+                              </td>
 
-                            {/* Action Buttons */}
-                            <td className="py-3.5 px-4 text-end">
-                              {isEditing ? (
-                                <div className="inline-flex items-center gap-1.5">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleSaveEditProduct(prod.id)}
-                                    className="h-8 px-3 rounded-lg text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              {/* Stock */}
+                              <td className="py-3.5 px-4">
+                                {isEditing ? (
+                                  <Input
+                                    type="number"
+                                    value={editStock}
+                                    onChange={(e) => setEditStock(Number(e.target.value))}
+                                    className="w-20 h-8 text-xs font-mono"
+                                    min={0}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-md text-xs ${
+                                      prod.stock === 0
+                                        ? "bg-rose-100 text-rose-700"
+                                        : isLow
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-emerald-50 text-emerald-700"
+                                    }`}
                                   >
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>حفظ</span>
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setEditingProductId(null)}
-                                    className="h-8 px-2 rounded-lg text-xs"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center gap-1">
-                                  {/* Full Studio Edit */}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setEditingFullProduct(prod)}
-                                    className="h-8 px-2.5 rounded-lg text-xs gap-1 text-primary border-primary/30 hover:bg-primary/5"
-                                    title="تعديل شامل لجميع بيانات وتفاصيل المنتج"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                    <span>تعديل شامل</span>
-                                  </Button>
+                                    {prod.stock === 0 && <XCircle className="w-3 h-3" />}
+                                    {prod.stock > 0 && isLow && (
+                                      <AlertTriangle className="w-3 h-3" />
+                                    )}
+                                    <span>{prod.stock} قطعة</span>
+                                  </span>
+                                )}
+                              </td>
 
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleStartEditProduct(prod)}
-                                    className="h-8 px-2 rounded-lg text-xs text-slate-500 hover:text-slate-800"
-                                    title="تعديل سريع للسعر والمخزون"
-                                  >
-                                    سريع
-                                  </Button>
+                              {/* Featured Toggle */}
+                              <td className="py-3.5 px-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleProductFeatured(prod)}
+                                  className={`p-1.5 rounded-lg transition-all inline-flex items-center gap-1 text-xs font-semibold ${
+                                    prod.is_featured
+                                      ? "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/80"
+                                      : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
+                                  }`}
+                                  title={
+                                    prod.is_featured
+                                      ? "منتج مميز بالصفحة الرئيسية (انقر لإلغاء التمييز)"
+                                      : "تمييز المنتج في صدارة المتجر"
+                                  }
+                                >
+                                  <Star
+                                    className={`w-4 h-4 ${
+                                      prod.is_featured
+                                        ? "fill-amber-400 text-amber-500"
+                                        : "text-slate-400"
+                                    }`}
+                                  />
+                                </button>
+                              </td>
 
-                                  <a
-                                    href={`/products/${prod.id}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100"
-                                    title="معاينة صفحة المنتج"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" />
-                                  </a>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              {/* Display status */}
+                              <td className="py-3.5 px-4">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleProductStatus(prod)}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                    prod.is_active
+                                      ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                  }`}
+                                >
+                                  {prod.is_active ? (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>معروض</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                                      <span>مخفي</span>
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+
+                              {/* Action Buttons */}
+                              <td className="py-3.5 px-4 text-end">
+                                {isEditing ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveEditProduct(prod.id)}
+                                      className="h-8 px-3 rounded-lg text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>حفظ</span>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditingProductId(null)}
+                                      className="h-8 px-2 rounded-lg text-xs"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-1">
+                                    {/* Full Studio Edit */}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setEditingFullProduct(prod)}
+                                      className="h-8 px-2.5 rounded-lg text-xs gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                      title="تعديل شامل لجميع بيانات وتفاصيل المنتج"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                      <span>تعديل شامل</span>
+                                    </Button>
+
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStartEditProduct(prod)}
+                                      className="h-8 px-2 rounded-lg text-xs text-slate-500 hover:text-slate-800"
+                                      title="تعديل سريع للسعر والمخزون"
+                                    >
+                                      سريع
+                                    </Button>
+
+                                    <a
+                                      href={`/products/${prod.id}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                                      title="معاينة صفحة المنتج"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </a>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 3: STORE THEMING & STYLING */}
+        {activeTab === "theming" && (
+          <div className="animate-in fade-in duration-200">
+            <StoreThemingTab />
+          </div>
+        )}
+
+        {/* TAB 4: STORE SECURITY & PIN SETTINGS */}
+        {activeTab === "settings" && (
+          <div className="animate-in fade-in duration-200 space-y-6 max-w-3xl mx-auto">
+            <AdminPinManagerCard variant="admin" />
           </div>
         )}
       </main>

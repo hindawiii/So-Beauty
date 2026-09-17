@@ -12,6 +12,19 @@ export default defineConfig({
       host: "0.0.0.0",
       port: 3000,
     },
+    build: {
+      rollupOptions: {
+        onwarn(warning, warn) {
+          if (
+            warning.code === "MODULE_LEVEL_DIRECTIVE" &&
+            warning.message?.includes('"use client"')
+          ) {
+            return;
+          }
+          warn(warning);
+        },
+      },
+    },
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
