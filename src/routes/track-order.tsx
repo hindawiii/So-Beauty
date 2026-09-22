@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   PackageCheck,
   Search,
@@ -69,6 +70,7 @@ export const Route = createFileRoute("/track-order")({
 
 function TrackOrderPage() {
   const { q: initialQuery } = Route.useSearch();
+  const { t } = useLanguage();
   const [query, setQuery] = useState(initialQuery || "");
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,7 +108,7 @@ function TrackOrderPage() {
     async (term: string) => {
       const clean = term.trim();
       if (!clean) {
-        toast.error("يرجى إدخال رقم الطلب أو رقم الهاتف");
+        toast.error(t("tracking.inputRequiredToast"));
         return;
       }
 
@@ -118,16 +120,16 @@ function TrackOrderPage() {
         setResults(orders);
         if (orders.length > 0) {
           saveRecentQuery(clean);
-          toast.success(`تم العثور على (${orders.length}) طلب مطابق 🌸`);
+          toast.success(t("tracking.ordersFoundToast").replace("{count}", String(orders.length)));
         }
       } catch {
-        toast.error("حدث خطأ أثناء البحث عن الطلب، يرجى المحاولة لاحقاً");
+        toast.error(t("tracking.errorToast"));
         setResults([]);
       } finally {
         setLoading(false);
       }
     },
-    [saveRecentQuery],
+    [saveRecentQuery, t],
   );
 
   useEffect(() => {
@@ -147,10 +149,10 @@ function TrackOrderPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer"
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>العودة لمتجر المنتجات</span>
+            <span>{t("tracking.backToStore")}</span>
           </Link>
           <span className="text-xs text-muted-foreground font-medium">
-            مركز تتبع الشحنات والطلبات
+            {t("tracking.centerName")}
           </span>
         </div>
 
@@ -161,14 +163,13 @@ function TrackOrderPage() {
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-2">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>نظام التتبع المباشر للشحنات</span>
+            <span>{t("tracking.badge")}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2.5">
-            أين وصل طلبي؟
+            {t("tracking.title")}
           </h1>
           <p className="text-xs sm:text-sm md:text-base text-slate-500 leading-relaxed">
-            أدخلي رقم الطلب أو رقم هاتفكِ المسجل للتحقق من مرحلة التجهيز وموعد التوصيل المتوقع
-            لمدينتكِ.
+            {t("tracking.subtitle")}
           </p>
         </div>
 
@@ -187,7 +188,7 @@ function TrackOrderPage() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="رقم الطلب (مثال: 83a3...) أو رقم الهاتف..."
+                placeholder={t("tracking.placeholder")}
                 className="h-12 ps-10 pe-10 rounded-xl text-xs sm:text-sm bg-slate-50/50 focus:bg-white border-slate-200"
               />
               {query && (
@@ -195,7 +196,7 @@ function TrackOrderPage() {
                   type="button"
                   onClick={() => setQuery("")}
                   className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
-                  aria-label="مسح البحث"
+                  aria-label={t("tracking.clearSearch")}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -210,12 +211,12 @@ function TrackOrderPage() {
               {loading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  جاري الفحص...
+                  {t("tracking.checking")}
                 </>
               ) : (
                 <>
                   <Search className="w-4 h-4" />
-                  تتبع الشحنة
+                  {t("tracking.trackBtn")}
                 </>
               )}
             </Button>
@@ -224,7 +225,7 @@ function TrackOrderPage() {
           {/* Quick suggestions / Last searches */}
           {recentQueries.length > 0 && (
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 flex-wrap text-xs text-slate-500">
-              <span className="font-medium">عمليات بحث سابقة:</span>
+              <span className="font-medium">{t("tracking.recentSearches")}</span>
               {recentQueries.map((item, idx) => (
                 <button
                   key={idx}
@@ -246,10 +247,8 @@ function TrackOrderPage() {
         {loading && (
           <div className="text-center py-16">
             <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-700">
-              جاري فحص وتحديث بيانات الطلب مع نظام الشحن...
-            </p>
-            <p className="text-xs text-slate-400 mt-1">لحظات قليلة ونعرض تفاصيل شحنتكِ 🌸</p>
+            <p className="text-sm font-semibold text-slate-700">{t("tracking.checkingStatus")}</p>
+            <p className="text-xs text-slate-400 mt-1">{t("tracking.checkingSubtitle")}</p>
           </div>
         )}
 
@@ -260,11 +259,10 @@ function TrackOrderPage() {
               <XCircle className="w-8 h-8" />
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-              لم نعثر على أي طلب مطابق
+              {t("tracking.orderNotFound")}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mb-6 leading-relaxed">
-              تأكدي من صحة رقم الطلب أو رقم الهاتف المكتوب. بإمكانكِ أيضاً مراسلة فريق خدمة العملاء
-              عبر واتساب وسنساعدكِ فوراً في معرفة موقع طلبكِ.
+              {t("tracking.orderNotFoundDesc")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button
@@ -275,7 +273,7 @@ function TrackOrderPage() {
                 }}
                 className="w-full sm:w-auto h-11 px-5 rounded-xl text-xs font-semibold"
               >
-                إعادة المحاولة
+                {t("tracking.tryAgain")}
               </Button>
               <a
                 href={getWhatsAppChatUrl(
@@ -287,7 +285,7 @@ function TrackOrderPage() {
               >
                 <Button className="w-full h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2">
                   <MessageCircle className="w-4 h-4" />
-                  مراسلة الدعم عبر واتساب
+                  {t("tracking.contactSupportWhatsApp")}
                 </Button>
               </a>
             </div>
@@ -298,16 +296,14 @@ function TrackOrderPage() {
         {!loading && results.length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600 px-1">
-              <span>
-                تم العثور على <strong className="text-slate-900">{results.length}</strong> طلب
-              </span>
+              <span>{t("tracking.foundCount").replace("{count}", String(results.length))}</span>
               <button
                 type="button"
                 onClick={() => handleSearch(query)}
                 className="text-primary hover:underline font-semibold flex items-center gap-1"
               >
                 <RefreshCw className="w-3 h-3" />
-                تحديث الحالة
+                {t("tracking.refreshStatus")}
               </button>
             </div>
 
@@ -323,36 +319,37 @@ function TrackOrderPage() {
 }
 
 function OrderTrackingCard({ order }: { order: OrderResult }) {
-  const { formatPrice, formatBoth } = useCurrency();
+  const { formatPrice } = useCurrency();
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const steps = [
     {
       key: "pending",
       stepNum: 1,
-      label: "تم الاستلام",
-      desc: "تم تسجيل الطلب بالنظام بنجاح",
+      label: t("tracking.step1Label"),
+      desc: t("tracking.step1Desc"),
       icon: Clock,
     },
     {
       key: "confirmed",
       stepNum: 2,
-      label: "قيد التجهيز",
-      desc: "فحص وتغليف مستحضرات العناية",
+      label: t("tracking.step2Label"),
+      desc: t("tracking.step2Desc"),
       icon: PackageCheck,
     },
     {
       key: "shipped",
       stepNum: 3,
-      label: "خرج للتوصيل",
-      desc: "مع مندوب الشحن لمدينتكِ",
+      label: t("tracking.step3Label"),
+      desc: t("tracking.step3Desc"),
       icon: Truck,
     },
     {
       key: "delivered",
       stepNum: 4,
-      label: "تم التسليم",
-      desc: "تم استلام الطلب بالكامل",
+      label: t("tracking.step4Label"),
+      desc: t("tracking.step4Desc"),
       icon: CheckCircle2,
     },
   ];
@@ -373,7 +370,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
   const copyOrderId = () => {
     navigator.clipboard.writeText(order.id);
     setCopied(true);
-    toast.success("تم نسخ رقم الطلب إلى الحافظة 📋");
+    toast.success(t("tracking.copySuccessToast"));
     setTimeout(() => setCopied(false), 2500);
   };
 
@@ -384,14 +381,14 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
 الإجمالي: ${formatPrice(Number(order.total))}
 الحالة الحالية: ${
     order.status === "pending"
-      ? "قيد المراجعة"
+      ? t("tracking.statusPending")
       : order.status === "confirmed"
-        ? "قيد التجهيز"
+        ? t("tracking.statusProcessing")
         : order.status === "shipped"
-          ? "خرج للتوصيل"
+          ? t("tracking.statusDelivering")
           : order.status === "delivered"
-            ? "تم التسليم"
-            : "ملغي"
+            ? t("tracking.statusCompleted")
+            : t("tracking.statusCancelled")
   }`;
 
   return (
@@ -401,7 +398,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              رقم الطلب:
+              {t("tracking.orderNumberLabel")}
             </span>
             <span className="text-lg sm:text-xl font-bold font-mono text-primary">
               #{formattedOrderId}
@@ -415,19 +412,21 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
               {copied ? (
                 <>
                   <Check className="w-3 h-3 text-emerald-600" />
-                  <span className="text-emerald-700">تم النسخ</span>
+                  <span className="text-emerald-700">{t("tracking.copied")}</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3 h-3" />
-                  <span>نسخ الرقم</span>
+                  <span>{t("tracking.copyOrderNum")}</span>
                 </>
               )}
             </button>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Calendar className="w-3.5 h-3.5" />
-            <span>تاريخ الطلب: {new Date(order.created_at).toLocaleDateString("ar-EG")}</span>
+            <span>
+              {t("tracking.orderDateLabel")} {new Date(order.created_at).toLocaleDateString()}
+            </span>
           </div>
         </div>
 
@@ -436,19 +435,19 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
           {isCancelled ? (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
               <XCircle className="w-4 h-4" />
-              طلب ملغي
+              {t("tracking.cancelledBadge")}
             </span>
           ) : order.status === "delivered" ? (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 className="w-4 h-4" />
-              تم التسليم بنجاح
+              {t("tracking.deliveredBadge")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
               <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-              {order.status === "pending" && "قيد المراجعة والاستلام"}
-              {order.status === "confirmed" && "قيد التجهيز والتغليف"}
-              {order.status === "shipped" && "خرج مع مندوب التوصيل"}
+              {order.status === "pending" && t("tracking.statusPending")}
+              {order.status === "confirmed" && t("tracking.statusProcessing")}
+              {order.status === "shipped" && t("tracking.statusDelivering")}
             </span>
           )}
         </div>
@@ -460,11 +459,13 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
           <div className="flex items-center gap-2.5">
             <Truck className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              التوصيل المتوقع إلى <strong className="font-bold">{order.city}</strong>:{" "}
+              {t("tracking.expectedDeliveryTo").replace("{city}", order.city)}{" "}
               <span className="font-semibold text-amber-700">{deliveryEstimate}</span>
             </span>
           </div>
-          <span className="text-[11px] text-amber-700/80 hidden sm:inline">الدفع عند الاستلام</span>
+          <span className="text-[11px] text-amber-700/80 hidden sm:inline">
+            {t("tracking.codBadge")}
+          </span>
         </div>
       )}
 
@@ -546,9 +547,9 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
         </div>
 
         <div className="space-y-1.5 sm:text-end sm:border-s sm:border-slate-200 sm:ps-4 flex flex-col justify-center">
-          <div className="text-slate-500 text-xs">طريقة السداد: الدفع نقداً عند الاستلام (COD)</div>
+          <div className="text-slate-500 text-xs">{t("tracking.paymentMethodCod")}</div>
           <div className="text-base sm:text-lg font-bold text-primary" suppressHydrationWarning>
-            المجموع الكلي: {formatPrice(Number(order.total))}
+            {t("tracking.grandTotalLabel")} {formatPrice(Number(order.total))}
           </div>
         </div>
       </div>
@@ -557,7 +558,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
       {order.order_items && order.order_items.length > 0 && (
         <div className="border-t border-slate-100 pt-4 mb-6">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-            محتويات الشحنة ({order.order_items.length} منتجات)
+            {t("tracking.shipmentContents").replace("{count}", String(order.order_items.length))}
           </h3>
           <div className="divide-y divide-slate-100 text-xs sm:text-sm">
             {order.order_items.map((item) => (
@@ -580,9 +581,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
 
       {/* Quick WhatsApp Support Help */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 text-xs">
-        <span className="text-slate-500">
-          هل تودين تعديل العنوان أو رقم الهاتف أو لديكِ استفسار؟
-        </span>
+        <span className="text-slate-500">{t("tracking.whatsappHelpQuestion")}</span>
         <a
           href={getWhatsAppChatUrl(whatsappMessage)}
           target="_blank"
@@ -590,7 +589,7 @@ function OrderTrackingCard({ order }: { order: OrderResult }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold transition-colors"
         >
           <WhatsAppEmblemIcon size={16} className="text-emerald-600" />
-          <span>تواصل فوري برقم الطلب عبر واتساب</span>
+          <span>{t("tracking.whatsappHelpBtn")}</span>
         </a>
       </div>
     </div>

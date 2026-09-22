@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Search, X, TrendingUp, Sparkles, ArrowLeft, ArrowRight } from "lucide-react";
+import { Search, X, TrendingUp, Sparkles, ArrowLeft } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface LuxeSearchModalProps {
   isOpen: boolean;
@@ -8,19 +9,34 @@ interface LuxeSearchModalProps {
   initialQuery?: string;
 }
 
-const POPULAR_SEARCHES = [
-  "سيروم الهيالورونيك",
-  "كريم مرطب",
-  "واقي شمس",
-  "غسول للبشرة الحساسة",
-  "فيتامين سي",
-  "تونر مقشر",
-];
-
 export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSearchModalProps) {
+  const { language, isRTL, t } = useLanguage();
+  const isAr = language === "ar";
   const [query, setQuery] = useState(initialQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const popularSearches = useMemo(
+    () =>
+      isAr
+        ? [
+            "سيروم الهيالورونيك",
+            "كريم مرطب",
+            "واقي شمس",
+            "غسول للبشرة الحساسة",
+            "فيتامين سي",
+            "تونر مقشر",
+          ]
+        : [
+            "Hyaluronic Serum",
+            "Moisturizing Cream",
+            "Sunscreen",
+            "Gentle Cleanser",
+            "Vitamin C",
+            "Exfoliating Toner",
+          ],
+    [isAr],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -90,10 +106,14 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             id="luxe-search-title"
-            placeholder="ابحثي عن منتج، ماركة، أو عناية بالبشرة..."
+            placeholder={
+              isAr
+                ? "ابحثي عن منتج، ماركة، أو عناية بالبشرة..."
+                : "Search products, brands, or skincare..."
+            }
             className="flex-1 bg-transparent text-xs sm:text-sm md:text-base text-foreground placeholder:text-muted-foreground/75 outline-none font-medium h-10 px-1"
             autoComplete="off"
-            aria-label="ابحثي في متجر سو بيوتي"
+            aria-label={isAr ? "ابحثي في متجر سو بيوتي" : "Search So Beauty Store"}
           />
 
           {query ? (
@@ -104,7 +124,7 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
                 inputRef.current?.focus();
               }}
               className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
-              aria-label="مسح حقل البحث"
+              aria-label={isAr ? "مسح حقل البحث" : "Clear search"}
             >
               <X className="w-4 h-4" />
             </button>
@@ -116,7 +136,7 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
             disabled={!query.trim()}
             className="px-3.5 h-8 sm:h-9 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5 shrink-0"
           >
-            <span>بحث</span>
+            <span>{isAr ? "بحث" : "Search"}</span>
             <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-0 rotate-180" />
           </button>
 
@@ -125,8 +145,8 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
             type="button"
             onClick={onClose}
             className="p-1.5 sm:p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors shrink-0 cursor-pointer"
-            aria-label="إغلاق نافذة البحث"
-            title="إغلاق"
+            aria-label={isAr ? "إغلاق نافذة البحث" : "Close search dialog"}
+            title={isAr ? "إغلاق" : "Close"}
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,11 +156,11 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
         <div className="p-3.5 sm:p-5 space-y-3 overflow-y-auto">
           <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-muted-foreground">
             <TrendingUp className="w-3.5 h-3.5 text-primary" />
-            <span>الأكثر بحثاً ورواجاً في المتجر:</span>
+            <span>{isAr ? "الأكثر بحثاً ورواجاً في المتجر:" : "Trending Searches:"}</span>
           </div>
 
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {POPULAR_SEARCHES.map((item, idx) => (
+            {popularSearches.map((item, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -154,8 +174,12 @@ export function LuxeSearchModal({ isOpen, onClose, initialQuery = "" }: LuxeSear
           </div>
 
           <div className="pt-2.5 border-t border-border/40 flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground">
-            <span>اضغطي على أي اقتراح أو زر بحث</span>
-            <span className="hidden sm:inline">اضغطي Esc للخروج السريع</span>
+            <span>
+              {isAr ? "اضغطي على أي اقتراح أو زر بحث" : "Click any suggestion or submit search"}
+            </span>
+            <span className="hidden sm:inline">
+              {isAr ? "اضغطي Esc للخروج السريع" : "Press Esc to close"}
+            </span>
           </div>
         </div>
       </div>

@@ -16,6 +16,8 @@ import {
   Info,
   Plus,
   Image as ImageIcon,
+  Loader2,
+  Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +27,15 @@ import type { Database } from "@/integrations/supabase/types";
 import type { Product } from "@/lib/mock-products";
 import { ProductQualityAdvisor } from "@/components/ProductQualityAdvisor";
 import { resolveProductImage, extractProductGallery } from "@/lib/product-images";
+import { extractProductI18n } from "@/lib/product-localization";
+import { adminTranslateProductAi } from "@/lib/gemini-translate.functions";
 
 type ProductCategory = Database["public"]["Enums"]["product_category"];
 
 export interface UpdateProductPayload {
   id: string;
   name: string;
+  name_en?: string | null;
   category: ProductCategory;
   price: number;
   original_price?: number | null;
@@ -38,6 +43,7 @@ export interface UpdateProductPayload {
   image_url?: string;
   gallery_images?: string[];
   description?: string;
+  description_en?: string | null;
   is_featured?: boolean;
   is_active?: boolean;
 }
@@ -83,14 +89,17 @@ export function LuxeEditProductModal({
 
   // Form states
   const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [category, setCategory] = useState<ProductCategory>("skincare");
   const [price, setPrice] = useState<string>("");
   const [originalPrice, setOriginalPrice] = useState<string>("");
   const [stock, setStock] = useState<string>("0");
   const [imageUrl, setImageUrl] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
 
   // Multi-angle gallery state (Optional for merchant)
   const [enableGallery, setEnableGallery] = useState<boolean>(false);
@@ -106,6 +115,9 @@ export function LuxeEditProductModal({
   useEffect(() => {
     if (product) {
       setName(product.name || "");
+      const i18n = extractProductI18n(product);
+      setNameEn(product.name_en || i18n.name_en || "");
+      setDescriptionEn(product.description_en || i18n.description_en || "");
       setCategory(product.category || "skincare");
       setPrice(String(product.price || ""));
       setOriginalPrice(product.original_price ? String(product.original_price) : "");
@@ -156,6 +168,57 @@ export function LuxeEditProductModal({
       setSkinType(parsedSkin);
     }
   }, [product]);
+
+  const handleAiTranslate = async () => {
+    const inputName = name.trim() || nameEn.trim();
+    if (!inputName) {
+      toast.error("يرجى التأكد من وجود اسم للمنتج أولاً للبدء في الترجمة والتوليد الذكي ✨");
+      return;
+    }
+
+    try {
+      setIsTranslating(true);
+      const adminPin =
+        typeof window !== "undefined"
+          ? localStorage.getItem("so_admin_pin") || undefined
+          : undefined;
+
+      const res = await adminTranslateProductAi({
+        data: {
+          name: inputName,
+          description: description.trim() || descriptionEn.trim() || undefined,
+          category,
+          howToUse: howToUse.trim() || undefined,
+          keyIngredients: keyIngredients.trim() || undefined,
+          adminPin,
+        },
+      });
+
+      if (res?.ok) {
+        if (res.name_ar && !name.trim()) setName(res.name_ar);
+        if (res.name_en) setNameEn(res.name_en);
+        if (res.description_ar && !description.trim()) setDescription(res.description_ar);
+        if (res.description_en) setDescriptionEn(res.description_en);
+        if (res.how_to_use_ar && !howToUse.trim()) setHowToUse(res.how_to_use_ar);
+        if (res.key_ingredients_ar && !keyIngredients.trim()) {
+          setKeyIngredients(res.key_ingredients_ar);
+        }
+
+        toast.success(
+          res.source === "gemini"
+            ? "✨ تم توليد وترجمة تفاصيل المنتج باللغتين عبر Gemini AI بنجاح!"
+            : "✨ تمت صياغة وترجمة تفاصيل المنتج باللغتين بنجاح!",
+        );
+      }
+    } catch (err) {
+      console.error("AI translate error:", err);
+      const msg =
+        err instanceof Error ? err.message : "حدث خطأ أثناء الترجمة الذكية، يرجى المحاولة ثانية";
+      toast.error(msg);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   if (!isOpen || !product) return null;
 
@@ -219,6 +282,7 @@ export function LuxeEditProductModal({
         data: {
           id: product.id,
           name: name.trim(),
+          name_en: nameEn.trim() || undefined,
           category,
           price: numericPrice,
           original_price: numericOriginal,
@@ -226,6 +290,7 @@ export function LuxeEditProductModal({
           image_url: primaryClean,
           gallery_images: compiledGallery,
           description: fullDescription,
+          description_en: descriptionEn.trim() || undefined,
           is_featured: isFeatured,
           is_active: isActive,
         },
@@ -391,16 +456,83 @@ export function LuxeEditProductModal({
         <form onSubmit={handleSave} className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1">
           {activeTab === "basic" && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1.5">
-                  اسم المنتج <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-11 rounded-xl text-sm"
-                  required
-                />
+              {/* AI Smart Translation & Localization Assistant */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                    <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-foreground">
+                        مساعد الترجمة والتوطين الذكي
+                      </h4>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
+                        Gemini AI
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      ترجمة وصياغة الاسم والوصف باللغتين العربية والإنجليزية تلقائياً بدقة
+                      واحترافية.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled={isTranslating || (!name.trim() && !nameEn.trim())}
+                  onClick={handleAiTranslate}
+                  className="h-9 px-3.5 shrink-0 rounded-xl text-xs font-bold gap-1.5 cursor-pointer shadow-sm w-full sm:w-auto"
+                >
+                  {isTranslating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>جاري التوليد والترجمة...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-3.5 h-3.5" />
+                      <span>ترجمة ذكية للمنتج ✨</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Product Names: Arabic & English */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center justify-between">
+                    <span>
+                      اسم المنتج (بالعربية) <span className="text-rose-500">*</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      Arabic Name
+                    </span>
+                  </label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-11 rounded-xl text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center justify-between">
+                    <span>الاسم بالإنجليزية (English Name)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      اختياري / AI
+                    </span>
+                  </label>
+                  <Input
+                    value={nameEn}
+                    onChange={(e) => setNameEn(e.target.value)}
+                    placeholder="e.g. Pure Vitamin C Illuminating Serum"
+                    className="h-11 rounded-xl text-sm font-sans"
+                    dir="ltr"
+                  />
+                </div>
               </div>
 
               {/* Category */}
@@ -656,17 +788,38 @@ export function LuxeEditProductModal({
 
           {activeTab === "details" && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1.5">
-                  الوصف التعريفي العام للمنتج
-                </label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="نبذة عن المنتج وفوائده..."
-                  rows={3}
-                  className="rounded-xl text-xs sm:text-sm resize-none"
-                />
+              {/* General Description: Arabic & English */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center justify-between">
+                    <span>الوصف التعريفي (بالعربية)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">Arabic</span>
+                  </label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="نبذة عن المنتج وفوائده..."
+                    rows={3}
+                    className="rounded-xl text-xs sm:text-sm resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center justify-between">
+                    <span>الوصف بالإنجليزية (English Description)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      English / AI
+                    </span>
+                  </label>
+                  <Textarea
+                    value={descriptionEn}
+                    onChange={(e) => setDescriptionEn(e.target.value)}
+                    placeholder="English description or auto-translate with Gemini AI..."
+                    rows={3}
+                    className="rounded-xl text-xs sm:text-sm resize-none font-sans"
+                    dir="ltr"
+                  />
+                </div>
               </div>
 
               <div>

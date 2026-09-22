@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { getLocalizedSetting } from "@/lib/product-localization";
 
 export function SiteFooter() {
   const { settings } = useStoreSettings();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
 
   // Column 2: Shopping & Catalog discovery
   const catalogLinks = [
@@ -45,8 +46,14 @@ export function SiteFooter() {
     },
   ] as const;
 
+  const localizedAddress = getLocalizedSetting(
+    settings.storeAddress,
+    language,
+    language === "ar" ? "أم درمان – شارع الوادي" : "Omdurman – Al-Wadi Street",
+  );
+
   const contactItems = [
-    { text: settings.storeAddress || "أم درمان – شارع الوادي", Icon: MapPin, dir: "rtl" as const },
+    { text: localizedAddress, Icon: MapPin, dir: (isRTL ? "rtl" : "ltr") as const },
     { text: settings.supportPhone || "+249 900 776 688", Icon: Phone, dir: "ltr" as const },
     {
       text: settings.supportEmail || "sobeauty.one@gmail.com",
@@ -109,16 +116,25 @@ export function SiteFooter() {
               className="text-base sm:text-lg font-bold mb-2.5 text-white"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              {settings.aboutTitle || "روائع العناية"}
+              {getLocalizedSetting(
+                settings.aboutTitle,
+                language,
+                language === "ar" ? "روائع العناية" : "Art of Natural Skincare",
+              )}
             </h4>
             <p className="text-xs sm:text-sm text-white/85 leading-relaxed max-w-sm sm:max-w-none">
-              {settings.aboutDescription ||
-                "نسعى لتقديم أفضل منتجات العناية الطبيعية بالبشرة بأسعار تنافسية وجودة عالية. جميع منتجاتنا أصلية بنسبة 100% ومضمونة."}
+              {getLocalizedSetting(
+                settings.aboutDescription,
+                language,
+                language === "ar"
+                  ? "نسعى لتقديم أفضل منتجات العناية الطبيعية بالبشرة بأسعار تنافسية وجودة عالية. جميع منتجاتنا أصلية بنسبة 100% ومضمونة."
+                  : "We strive to deliver the finest natural skincare solutions at competitive prices with uncompromising quality. 100% authentic and ethically crafted.",
+              )}
             </p>
 
             <div className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-white/10 text-white/90 text-xs border border-white/15">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-              <span>منتجات أصلية معتمدة 100%</span>
+              <span>{t("footer.authenticBadge")}</span>
             </div>
           </div>
 
@@ -129,14 +145,14 @@ export function SiteFooter() {
               style={{ fontFamily: "var(--font-display)" }}
             >
               <Sparkles className="w-4 h-4 text-white/80 shrink-0 hidden sm:inline" />
-              <span>تسوّق واكتشف</span>
+              <span>{t("footer.discoverShop")}</span>
             </h4>
-            <ul className="space-y-3 text-xs sm:text-sm w-full">
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm w-full">
               {catalogLinks.map(({ to, label, Icon }) => (
                 <li key={label}>
                   <Link
                     to={to}
-                    className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-[-2px] transition-all justify-center sm:justify-start group"
+                    className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-[-2px] transition-all justify-center sm:justify-start group py-1.5 min-h-[36px]"
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
                     <span>{label}</span>
@@ -153,14 +169,14 @@ export function SiteFooter() {
               style={{ fontFamily: "var(--font-display)" }}
             >
               <HeartHandshake className="w-4 h-4 text-white/80 shrink-0 hidden sm:inline" />
-              <span>خدمة العملاء</span>
+              <span>{t("footer.customerService")}</span>
             </h4>
-            <ul className="space-y-3 text-xs sm:text-sm w-full">
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm w-full">
               {customerCareLinks.map(({ to, label, Icon }) => (
                 <li key={label}>
                   <Link
                     to={to}
-                    className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-[-2px] transition-all justify-center sm:justify-start group"
+                    className="flex items-center gap-2.5 text-white/85 hover:text-white hover:translate-x-[-2px] transition-all justify-center sm:justify-start group py-1.5 min-h-[36px]"
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
                     <span>{label}</span>
@@ -177,7 +193,7 @@ export function SiteFooter() {
               style={{ fontFamily: "var(--font-display)" }}
             >
               <MessageCircle className="w-4 h-4 text-white/80 shrink-0 hidden sm:inline" />
-              <span>قنوات التواصل</span>
+              <span>{t("footer.contactChannels")}</span>
             </h4>
 
             <ul className="space-y-3.5 text-xs sm:text-sm w-full">
@@ -196,20 +212,20 @@ export function SiteFooter() {
 
             <div className="mt-5 sm:mt-6">
               <span className="text-[11px] text-white/70 block mb-2 font-medium">
-                تابعنا عبر السوشيال ميديا:
+                {t("footer.followSocial")}
               </span>
-              <div className="flex gap-2.5 justify-center sm:justify-start">
+              <div className="flex gap-3 justify-center sm:justify-start">
                 <a
                   href="#"
                   aria-label="instagram"
-                  className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
                 >
                   <Instagram className="w-4 h-4" />
                 </a>
                 <a
                   href="#"
                   aria-label="facebook"
-                  className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
                 >
                   <Facebook className="w-4 h-4" />
                 </a>

@@ -5,6 +5,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useCart } from "@/hooks/useCart";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { getLocalizedProductName } from "@/lib/product-localization";
 import { createOrder, getMyProfile } from "@/lib/orders.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,8 +28,6 @@ import {
   UserPlus,
   ArrowLeft,
   ChevronRight,
-  PackageCheck,
-  MapPin,
   Clock,
   Copy,
   Check,
@@ -54,6 +54,7 @@ function CheckoutPage() {
   const { settings } = useStoreSettings();
   const { items, total, clear } = useCart();
   const { formatPrice, formatBoth, currency } = useCurrency();
+  const { t, language } = useLanguage();
   const submit = useServerFn(createOrder);
   const loadProfile = useServerFn(getMyProfile);
 
@@ -123,14 +124,14 @@ function CheckoutPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) {
-      toast.error("السلة فارغة، يرجى إضافة منتجات أولاً");
+      toast.error(t("checkout.cartEmptyToast"));
       return;
     }
 
     setLoading(true);
     const orderItemsSnapshot = items.map((i) => ({
       id: i.id,
-      name: i.name,
+      name: getLocalizedProductName(i, language),
       quantity: i.quantity,
       price: i.price,
     }));
@@ -148,8 +149,33 @@ function CheckoutPage() {
         },
       });
 
+      // Save order snapshot locally for instant guest tracking & resilience
+      try {
+        const stored = JSON.parse(localStorage.getItem("so_beauty_my_recent_orders") || "[]");
+        const entry = {
+          orderId: res.orderId,
+          date: new Date().toISOString(),
+          total: res.total,
+          fullName: form.full_name,
+          phone: form.phone,
+          city: finalCity,
+          shippingAddress: form.shipping_address,
+          notes: form.notes ? form.notes : undefined,
+          items: orderItemsSnapshot,
+          isGuest: res.isGuest,
+        };
+        const updated = [
+          entry,
+          ...stored.filter((o: { orderId: string }) => o.orderId !== res.orderId),
+        ].slice(0, 10);
+        localStorage.setItem("so_beauty_my_recent_orders", JSON.stringify(updated));
+        localStorage.setItem("so_beauty_last_tracking_query", res.orderId);
+      } catch {
+        // Non-blocking storage fallback
+      }
+
       clear();
-      toast.success("تم تأكيد طلبك بنجاح وسنقوم بتجهيزه فوراً!");
+      toast.success(t("checkout.orderSuccessToast"));
 
       setCompletedOrder({
         orderId: res.orderId,
@@ -163,7 +189,12 @@ function CheckoutPage() {
         isGuest: res.isGuest,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "حدث خطأ أثناء معالجة الطلب";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : language === "ar"
+            ? "حدث خطأ أثناء معالجة الطلب"
+            : "An error occurred while processing order";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -190,10 +221,10 @@ function CheckoutPage() {
       try {
         await navigator.clipboard.writeText(whatsappOrderSummary);
         setCopiedSummary(true);
-        toast.success("تم نسخ تفاصيل الفاتورة إلى الحافظة بنجاح!");
+        toast.success(t("checkout.copySuccessToast"));
         setTimeout(() => setCopiedSummary(false), 2500);
       } catch {
-        toast.error("تعذر النسخ التلقائي");
+        toast.error(t("checkout.copyFailed"));
       }
     };
 
@@ -207,57 +238,56 @@ function CheckoutPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-              شكراً لك! تم استلام طلبك بنجاح
+              {t("checkout.orderSuccessTitle")}
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base mb-4">
-              رقم الطلب:{" "}
+              {t("checkout.orderNumber")}{" "}
               <span className="font-mono font-bold text-foreground">
                 #{completedOrder.orderId.slice(0, 8).toUpperCase()}
               </span>
             </p>
 
             {/* Instant Alert Banner */}
-            <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3.5 mb-6 text-start flex items-start gap-3">
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-3.5 mb-6 text-start flex items-start gap-3">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping mt-1.5 shrink-0" />
-              <div className="text-xs sm:text-sm text-emerald-900 leading-relaxed">
-                <strong>إشعار فوري:</strong> تم تسجيل طلبك تلقائياً في نظام إدارة المتجر. لبدء
-                التجهيز السريع للشحنة، يمكنك إرسال ملخص الطلب لإدارة المتجر عبر واتساب بنقرة واحدة
-                أدناه.
+              <div className="text-xs sm:text-sm text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                <strong>{language === "ar" ? "إشعار فوري:" : "Notice:"}</strong>{" "}
+                {t("checkout.instantAlert")}
               </div>
             </div>
 
             <div className="bg-muted/40 rounded-xl p-4 text-start text-sm space-y-2 mb-6 border border-border/50">
               <div className="flex justify-between font-medium">
-                <span className="text-muted-foreground">العميل:</span>
+                <span className="text-muted-foreground">{t("checkout.customer")}</span>
                 <span>
                   {completedOrder.fullName} ({completedOrder.phone})
                 </span>
               </div>
               <div className="flex justify-between font-medium">
-                <span className="text-muted-foreground">عنوان التوصيل:</span>
+                <span className="text-muted-foreground">{t("checkout.deliveryAddress")}</span>
                 <span>
                   {completedOrder.city} - {completedOrder.shippingAddress}
                 </span>
               </div>
               {completedOrder.notes && (
-                <div className="flex justify-between font-medium text-amber-800 bg-amber-50/50 p-2 rounded-lg">
-                  <span>ملاحظاتك:</span>
+                <div className="flex justify-between font-medium text-amber-800 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-lg">
+                  <span>{t("checkout.yourNotes")}</span>
                   <span>{completedOrder.notes}</span>
                 </div>
               )}
               <div className="flex justify-between font-medium">
-                <span className="text-muted-foreground">طريقة الدفع:</span>
-                <span className="text-primary font-semibold">الدفع عند الاستلام (COD)</span>
+                <span className="text-muted-foreground">{t("checkout.paymentMethod")}</span>
+                <span className="text-primary font-semibold">{t("checkout.cashOnDelivery")}</span>
               </div>
               <div className="flex justify-between font-bold border-t border-border/60 pt-2 text-base">
-                <span>المبلغ الإجمالي:</span>
+                <span>{t("checkout.finalTotal")}</span>
                 <span className="text-primary">{formatPrice(completedOrder.total)}</span>
               </div>
             </div>
 
             <div className="border border-border/60 rounded-xl p-4 text-start mb-6">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                المنتجات المطلوبة ({completedOrder.items.length})
+                {t("checkout.orderedProducts")} ({completedOrder.items.length})
               </h3>
               <div className="space-y-2">
                 {completedOrder.items.map((it) => (
@@ -285,7 +315,7 @@ function CheckoutPage() {
               >
                 <Button className="w-full h-11 px-6 font-semibold gap-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white border-none shadow-sm cursor-pointer">
                   <WhatsAppEmblemIcon className="w-4 h-4 fill-current" />
-                  إرسال ملخص الطلب للإدارة عبر واتساب
+                  {t("checkout.sendWhatsAppBtn")}
                 </Button>
               </a>
               <Button
@@ -296,12 +326,12 @@ function CheckoutPage() {
                 {copiedSummary ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-600" />
-                    <span>تم النسخ!</span>
+                    <span>{t("checkout.copied")}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    <span>نسخ الفاتورة</span>
+                    <span>{t("checkout.copyInvoice")}</span>
                   </>
                 )}
               </Button>
@@ -312,13 +342,13 @@ function CheckoutPage() {
               >
                 <Button variant="outline" className="w-full h-11 px-5 font-medium gap-2">
                   <Truck className="w-4 h-4" />
-                  تتبع الشحنة الآن
+                  {t("checkout.trackShipmentBtn")}
                 </Button>
               </Link>
               <Link to="/products" className="w-full sm:w-auto">
                 <Button variant="ghost" className="w-full h-11 px-5 font-medium gap-2">
                   <ShoppingBag className="w-4 h-4" />
-                  متابعة التسوق
+                  {t("checkout.continueShopping")}
                 </Button>
               </Link>
             </div>
@@ -339,14 +369,12 @@ function CheckoutPage() {
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-4 text-muted-foreground">
               <ShoppingBag className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">سلة المشتريات فارغة</h1>
-            <p className="text-muted-foreground text-sm mb-6">
-              يرجى إضافة بعض المنتجات الطبيعية إلى سلتك قبل المتابعة لصفحة إتمام الطلب.
-            </p>
+            <h1 className="text-2xl font-bold mb-2">{t("checkout.emptyCartTitle")}</h1>
+            <p className="text-muted-foreground text-sm mb-6">{t("checkout.emptyCartDesc")}</p>
             <Link to="/products">
               <Button className="h-11 px-6 gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                تصفح المنتجات الآن
+                <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+                {t("checkout.browseProducts")}
               </Button>
             </Link>
           </div>
@@ -367,10 +395,10 @@ function CheckoutPage() {
             className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer self-start sm:self-auto"
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>العودة إلى سلة التسوق</span>
+            <span>{t("checkout.backToCart")}</span>
           </Link>
           <span className="text-xs text-muted-foreground font-medium self-start sm:self-auto ps-1 sm:ps-0">
-            خطوة الدفع والتأكيد (آمن 100%)
+            {t("checkout.stepSecure")}
           </span>
         </div>
 
@@ -378,19 +406,17 @@ function CheckoutPage() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              إتمام الطلب
+              {t("checkout.title")}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              شحن سريع ومجاني للطلبات المؤكدة مع ميزة الدفع عند الاستلام
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{t("checkout.pageSubtitle")}</p>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground bg-card border border-border/80 rounded-lg p-2.5 px-3">
             <span className="flex items-center gap-1.5">
-              <Truck className="w-4 h-4 text-primary" /> توصيل سريع
+              <Truck className="w-4 h-4 text-primary" /> {t("checkout.fastDelivery")}
             </span>
             <span className="w-px h-3.5 bg-border" />
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-primary" /> دفع عند الاستلام
+              <ShieldCheck className="w-4 h-4 text-primary" /> {t("checkout.cashOnDelivery")}
             </span>
           </div>
         </div>
@@ -400,24 +426,21 @@ function CheckoutPage() {
           <div className="mb-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 rounded-xl p-3.5 px-4 flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>أهلاً بك! تم تسجيل الدخول بحسابك (سيتم حفظ الطلب في سجلك تلقائياً).</span>
+              <span>{t("checkout.loggedWelcome")}</span>
             </div>
           </div>
         ) : (
           <div className="mb-6 bg-primary/5 border border-primary/20 text-primary-foreground rounded-xl p-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-foreground">
             <div className="flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-primary shrink-0" />
-              <span>
-                <strong>الشراء المباشر كزائر متاح:</strong> يمكنك إكمال طلبك فوراً بدون الحاجة
-                لتسجيل حساب.
-              </span>
+              <span>{t("checkout.guestNotice")}</span>
             </div>
             <Link
               to="/auth"
               search={{ redirect: "/checkout" }}
               className="text-primary text-xs sm:text-sm font-semibold hover:underline shrink-0"
             >
-              لديك حساب بالفعل؟ سجّل الدخول
+              {t("checkout.haveAccountLogin")}
             </Link>
           </div>
         )}
@@ -428,18 +451,18 @@ function CheckoutPage() {
             <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-sm space-y-5">
               <h2 className="text-lg font-semibold border-b border-border/60 pb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
-                بيانات الشحن والتوصيل
+                {t("checkout.shippingInfo")}
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="full_name" className="text-sm font-medium">
-                    الاسم الكامل <span className="text-destructive">*</span>
+                    {t("checkout.fullName")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="full_name"
                     required
-                    placeholder="مثال: سارة محمد"
+                    placeholder={t("checkout.fullNamePlaceholder")}
                     value={form.full_name}
                     onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                     className="h-11 text-start"
@@ -448,13 +471,13 @@ function CheckoutPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-sm font-medium">
-                    رقم الهاتف المحمول <span className="text-destructive">*</span>
+                    {t("checkout.phone")} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="phone"
                     required
                     type="tel"
-                    placeholder="مثال: 01012345678"
+                    placeholder={t("checkout.phonePlaceholder")}
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     className="h-11 text-start font-mono"
@@ -469,7 +492,7 @@ function CheckoutPage() {
                   className="text-sm font-medium flex items-center justify-between"
                 >
                   <span>
-                    المدينة / الولاية <span className="text-destructive">*</span>
+                    {t("checkout.city")} <span className="text-destructive">*</span>
                   </span>
                   <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
                     <Clock className="w-3 h-3 text-primary" />
@@ -493,16 +516,19 @@ function CheckoutPage() {
                   >
                     {activeCities.map((c) => (
                       <option key={c.name} value={c.name}>
-                        {c.name} {shippingFee === 0 ? "(شحن مجاني)" : `(${formatPrice(c.rate)})`}
+                        {c.name}{" "}
+                        {shippingFee === 0
+                          ? t("checkout.freeShippingTag")
+                          : `(${formatPrice(c.rate)})`}
                       </option>
                     ))}
-                    <option value="other">مدينة أخرى (إدخال يدوي)</option>
+                    <option value="other">{t("checkout.cityOther")}</option>
                   </select>
 
                   <Input
                     id="city"
                     required
-                    placeholder="اكتب اسم مدينتك أو منطقتك بالتفصيل..."
+                    placeholder={t("checkout.cityManual")}
                     value={form.city}
                     onChange={(e) => {
                       setForm({ ...form, city: e.target.value });
@@ -515,14 +541,13 @@ function CheckoutPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="shipping_address" className="text-sm font-medium">
-                  العنوان بالتفصيل (اسم الشارع، رقم العقار، رقم الشقة){" "}
-                  <span className="text-destructive">*</span>
+                  {t("checkout.address")} <span className="text-destructive">*</span>
                 </Label>
                 <Textarea
                   id="shipping_address"
                   required
                   rows={2}
-                  placeholder="مثال: شارع النصر، عمارة 15، الدور الرابع، شقة 8"
+                  placeholder={t("checkout.addressPlaceholder")}
                   value={form.shipping_address}
                   onChange={(e) => setForm({ ...form, shipping_address: e.target.value })}
                   className="resize-none text-start min-h-[72px]"
@@ -531,12 +556,12 @@ function CheckoutPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="notes" className="text-sm font-medium text-muted-foreground">
-                  ملاحظات إضافية للتوصيل (اختياري)
+                  {t("checkout.notes")}
                 </Label>
                 <Textarea
                   id="notes"
                   rows={2}
-                  placeholder="أي تعليمات للمندوب، موعد مفضل للتسليم، إلخ."
+                  placeholder={t("checkout.notesPlaceholder")}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="resize-none text-start min-h-[64px]"
@@ -551,9 +576,9 @@ function CheckoutPage() {
 
             <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-sm sticky top-24">
               <h2 className="text-lg font-semibold mb-4 border-b border-border/60 pb-3 flex items-center justify-between">
-                <span>ملخص الطلب</span>
+                <span>{t("checkout.orderSummary")}</span>
                 <span className="text-xs font-normal text-muted-foreground">
-                  ({items.length} منتج)
+                  ({items.length} {language === "ar" ? "منتج" : "items"})
                 </span>
               </h2>
 
@@ -564,7 +589,9 @@ function CheckoutPage() {
                     className="pt-2 first:pt-0 flex items-center justify-between text-sm gap-2"
                   >
                     <div className="truncate">
-                      <div className="font-medium text-foreground truncate">{i.name}</div>
+                      <div className="font-medium text-foreground truncate">
+                        {getLocalizedProductName(i, language)}
+                      </div>
                       <div className="text-xs text-muted-foreground" suppressHydrationWarning>
                         {i.quantity} × {formatPrice(i.price)}
                       </div>
@@ -584,14 +611,16 @@ function CheckoutPage() {
                 suppressHydrationWarning
               >
                 <div className="flex justify-between text-muted-foreground">
-                  <span>قيمة المنتجات</span>
+                  <span>{t("checkout.productsValue")}</span>
                   <span suppressHydrationWarning>{formatPrice(total)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground items-center">
-                  <span>الشحن والتوصيل ({currentCity})</span>
+                  <span>
+                    {t("checkout.shippingTo")} ({currentCity})
+                  </span>
                   {shippingFee === 0 ? (
                     <span className="text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-xs">
-                      مجاناً 🎉
+                      {t("checkout.free")}
                     </span>
                   ) : (
                     <span className="font-medium text-foreground" suppressHydrationWarning>
@@ -604,7 +633,7 @@ function CheckoutPage() {
                   suppressHydrationWarning
                 >
                   <div className="flex justify-between items-baseline text-base font-bold text-foreground">
-                    <span>الإجمالي النهائي</span>
+                    <span>{t("checkout.finalTotal")}</span>
                     <span className="text-primary text-xl tracking-tight" suppressHydrationWarning>
                       {finalTotalPrimary}
                     </span>
@@ -622,7 +651,7 @@ function CheckoutPage() {
 
               <div className="mt-4 pt-3 border-t border-border/50 text-xs text-muted-foreground flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>الدفع نقداً عند استلام الشحنة ومعاينتها</span>
+                <span>{t("checkout.codNotice")}</span>
               </div>
 
               <Button
@@ -633,10 +662,10 @@ function CheckoutPage() {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    جاري تأكيد الطلب...
+                    {t("checkout.confirmingBtn")}
                   </span>
                 ) : (
-                  <span>تأكيد وإرسال الطلب</span>
+                  <span>{t("checkout.confirmBtn")}</span>
                 )}
               </Button>
             </div>

@@ -13,10 +13,7 @@ import {
   Search,
   X,
   RotateCcw,
-  Check,
   Tag,
-  Boxes,
-  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +27,12 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
+import {
+  getLocalizedCategory,
+  getLocalizedProductName,
+  getLocalizedProductDescription,
+} from "@/lib/product-localization";
 
 const productsQuery = queryOptions({
   queryKey: ["products", "all"],
@@ -87,6 +90,7 @@ type SortOption = "default" | "price-asc" | "price-desc" | "discount" | "name-as
 
 function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: string }) {
   const { formatPrice } = useCurrency();
+  const { t, language, isRTL } = useLanguage();
   const { data: allProducts } = useSuspenseQuery(productsQuery);
 
   // States
@@ -139,12 +143,25 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
   const filteredProducts = useMemo(() => {
     let list = [...allProducts];
 
-    // Search query filter
+    // Search query filter (bilingual search)
     const term = searchQuery.trim().toLowerCase();
     if (term) {
-      list = list.filter((p) =>
-        [p.name, p.description ?? "", p.category ?? ""].join(" ").toLowerCase().includes(term),
-      );
+      list = list.filter((p) => {
+        const localizedName = getLocalizedProductName(p, language);
+        const localizedDesc = getLocalizedProductDescription(p, language);
+        const localizedCat = getLocalizedCategory(p.category, language);
+        return [
+          p.name,
+          localizedName,
+          p.description ?? "",
+          localizedDesc,
+          p.category ?? "",
+          localizedCat,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+      });
     }
 
     // Category filter
@@ -189,7 +206,11 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
         });
         break;
       case "name-asc":
-        list.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+        list.sort((a, b) => {
+          const nameA = getLocalizedProductName(a, language);
+          const nameB = getLocalizedProductName(b, language);
+          return nameA.localeCompare(nameB, language === "ar" ? "ar" : "en");
+        });
         break;
       case "default":
       default:
@@ -198,7 +219,16 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
     }
 
     return list;
-  }, [allProducts, searchQuery, selectedCategory, onlyOffers, onlyInStock, priceRange, sortBy]);
+  }, [
+    allProducts,
+    searchQuery,
+    selectedCategory,
+    onlyOffers,
+    onlyInStock,
+    priceRange,
+    sortBy,
+    language,
+  ]);
 
   return (
     <div className="space-y-8">
@@ -207,26 +237,39 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-xs font-bold text-primary tracking-wider uppercase bg-primary/10 px-2.5 py-1 rounded-full">
-              متجر So Beauty
+              {language === "ar" ? "متجر So Beauty" : "So Beauty Store"}
             </span>
-            <span className="text-xs text-slate-400">• عناية طبيعية 100%</span>
+            <span className="text-xs text-slate-400">
+              • {language === "ar" ? "عناية طبيعية 100%" : "100% Organic Care"}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
             {searchQuery
-              ? `نتائج البحث عن "${searchQuery}"`
+              ? language === "ar"
+                ? `نتائج البحث عن "${searchQuery}"`
+                : `Search results for "${searchQuery}"`
               : selectedCategory !== "all"
-                ? `منتجات قسم ${selectedCategory}`
-                : "جميع منتجات العناية بالبشرة"}
+                ? language === "ar"
+                  ? `منتجات قسم ${getLocalizedCategory(selectedCategory, language)}`
+                  : `${getLocalizedCategory(selectedCategory, language)} Products`
+                : t("products.title")}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            اكتشفي خيارات متجرنا المصممة لتمنح بشرتكِ النضارة، التغذية، والإشراقة الصحية.
-          </p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">{t("products.subtitle")}</p>
         </div>
 
         {/* Products Counter Badge */}
         <div className="text-xs text-slate-600 font-semibold whitespace-nowrap bg-slate-100/80 px-3.5 py-2 rounded-xl self-start md:self-auto border border-slate-200/60">
-          عرض <strong className="text-slate-900">{filteredProducts.length}</strong> من أصل{" "}
-          {allProducts.length} منتج
+          {language === "ar" ? (
+            <>
+              عرض <strong className="text-slate-900">{filteredProducts.length}</strong> من أصل{" "}
+              {allProducts.length} منتج
+            </>
+          ) : (
+            <>
+              Showing <strong className="text-slate-900">{filteredProducts.length}</strong> of{" "}
+              {allProducts.length} products
+            </>
+          )}
         </div>
       </div>
 
@@ -238,7 +281,11 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
             <Search className="absolute start-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="ابحثي باسم المنتج أو المكونات أو القسم..."
+              placeholder={
+                language === "ar"
+                  ? "ابحثي باسم المنتج أو المكونات أو القسم..."
+                  : "Search by product name, ingredients, or category..."
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="ps-10 pe-10 h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white text-xs sm:text-sm"
@@ -248,7 +295,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 type="button"
                 onClick={() => setSearchQuery("")}
                 className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
-                aria-label="مسح نص البحث"
+                aria-label={language === "ar" ? "مسح نص البحث" : "Clear search"}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -261,14 +308,18 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              aria-label="ترتيب المنتجات"
+              aria-label={t("products.sortBy")}
               className="h-11 ps-10 pe-8 bg-slate-50/50 hover:bg-slate-100/60 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer w-full sm:w-auto"
             >
-              <option value="default">الترتيب: الافتراضي والمميز</option>
-              <option value="price-asc">السعر: من الأقل للأعلى</option>
-              <option value="price-desc">السعر: من الأعلى للأقل</option>
-              <option value="discount">الأعلى خصماً وتوفيراً</option>
-              <option value="name-asc">أبجدياً (أ - ي)</option>
+              <option value="default">{t("products.sortFeatured")}</option>
+              <option value="price-asc">{t("products.sortPriceAsc")}</option>
+              <option value="price-desc">{t("products.sortPriceDesc")}</option>
+              <option value="discount">
+                {language === "ar" ? "الأعلى خصماً وتوفيراً" : "Biggest Savings & Discounts"}
+              </option>
+              <option value="name-asc">
+                {language === "ar" ? "أبجدياً (أ - ي)" : "Alphabetical (A - Z)"}
+              </option>
             </select>
           </div>
 
@@ -280,7 +331,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 className="h-11 rounded-xl gap-2 font-semibold text-xs sm:text-sm lg:hidden border-slate-200 shrink-0"
               >
                 <SlidersHorizontal className="w-4 h-4 text-primary" />
-                <span>الفلاتر المتقدمة</span>
+                <span>{language === "ar" ? "الفلاتر المتقدمة" : "Advanced Filters"}</span>
                 {activeFiltersCount > 0 && (
                   <span className="bg-primary text-primary-foreground text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center ms-1">
                     {activeFiltersCount}
@@ -288,11 +339,14 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm p-6 overflow-y-auto">
+            <SheetContent
+              side={isRTL ? "right" : "left"}
+              className="w-[85vw] max-w-sm p-6 overflow-y-auto"
+            >
               <SheetHeader className="text-start border-b pb-4 mb-6">
                 <SheetTitle className="text-lg font-bold flex items-center gap-2">
                   <SlidersHorizontal className="w-5 h-5 text-primary" />
-                  خيارات التصفية
+                  {language === "ar" ? "خيارات التصفية" : "Filter Options"}
                 </SheetTitle>
               </SheetHeader>
 
@@ -300,7 +354,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 {/* Mobile: Categories */}
                 <div>
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                    الأقسام والتصنيفات
+                    {language === "ar" ? "الأقسام والتصنيفات" : "Categories"}
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -312,7 +366,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                           : "bg-muted text-slate-700"
                       }`}
                     >
-                      الكل ({allProducts.length})
+                      {t("products.filterAll")} ({allProducts.length})
                     </button>
                     <button
                       type="button"
@@ -324,7 +378,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                       }`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      العروض والتخفيضات
+                      {t("products.filterOffers")}
                     </button>
                     {categories.map((c) => (
                       <button
@@ -337,7 +391,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                             : "bg-muted text-slate-700"
                         }`}
                       >
-                        {c}
+                        {getLocalizedCategory(c, language)}
                       </button>
                     ))}
                   </div>
@@ -347,7 +401,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 <div className="border-t pt-5">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      الحد الأقصى للسعر
+                      {language === "ar" ? "الحد الأقصى للسعر" : "Max Price"}
                     </h4>
                     <span className="text-xs font-bold text-primary">
                       {formatPrice(priceRange)}
@@ -370,7 +424,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 {/* Mobile: Toggles */}
                 <div className="border-t pt-5 space-y-3">
                   <label className="flex items-center justify-between p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-muted/40 transition-colors">
-                    <span className="text-xs font-semibold">المتوفر في المخزون فقط</span>
+                    <span className="text-xs font-semibold">{t("products.inStock")}</span>
                     <input
                       type="checkbox"
                       checked={onlyInStock}
@@ -380,7 +434,9 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                   </label>
 
                   <label className="flex items-center justify-between p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-muted/40 transition-colors">
-                    <span className="text-xs font-semibold">المنتجات المخفضة فقط 🔥</span>
+                    <span className="text-xs font-semibold">
+                      {language === "ar" ? "المنتجات المخفضة فقط 🔥" : "Discounted Only 🔥"}
+                    </span>
                     <input
                       type="checkbox"
                       checked={onlyOffers}
@@ -394,7 +450,9 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 <div className="pt-4 flex flex-col gap-2">
                   <SheetClose asChild>
                     <Button className="w-full h-11 rounded-xl font-semibold text-xs">
-                      عرض النتائج ({filteredProducts.length})
+                      {language === "ar"
+                        ? `عرض النتائج (${filteredProducts.length})`
+                        : `Show Results (${filteredProducts.length})`}
                     </Button>
                   </SheetClose>
                   {activeFiltersCount > 0 && (
@@ -403,7 +461,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                       onClick={handleResetFilters}
                       className="w-full text-xs text-slate-500 hover:text-slate-800"
                     >
-                      إعادة تعيين جميع الفلاتر
+                      {t("products.resetFilters")}
                     </Button>
                   )}
                 </div>
@@ -423,7 +481,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                 : "bg-muted/60 hover:bg-muted text-slate-700"
             }`}
           >
-            الكل ({allProducts.length})
+            {t("products.filterAll")} ({allProducts.length})
           </button>
 
           <button
@@ -436,7 +494,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            العروض والتخفيضات
+            {t("products.filterOffers")}
           </button>
 
           {categories.map((cat) => (
@@ -450,7 +508,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                   : "bg-muted/60 hover:bg-muted text-slate-700"
               }`}
             >
-              {cat}
+              {getLocalizedCategory(cat, language)}
             </button>
           ))}
         </div>
@@ -473,7 +531,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                   onlyInStock ? "bg-emerald-600" : "bg-slate-300"
                 }`}
               />
-              المتوفر في المخزون فقط
+              {t("products.inStock")}
             </button>
 
             {/* Offers toggle */}
@@ -487,14 +545,15 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
               }`}
             >
               <Tag className="w-3.5 h-3.5 text-rose-500" />
-              المنتجات المخفضة فقط
+              {language === "ar" ? "المنتجات المخفضة فقط" : "Discounted Only"}
             </button>
           </div>
 
           {/* Desktop Price Slider Filter */}
           <div className="flex items-center gap-3 w-72">
             <span className="text-slate-500 whitespace-nowrap text-[11px] font-medium">
-              حتى: <strong className="text-slate-800">{formatPrice(priceRange)}</strong>
+              {language === "ar" ? "حتى:" : "Up to:"}{" "}
+              <strong className="text-slate-800">{formatPrice(priceRange)}</strong>
             </span>
             <Slider
               value={[priceRange]}
@@ -511,16 +570,18 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
       {/* Active Filters Chips Bar */}
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 bg-muted/40 p-3 rounded-2xl border border-slate-200/60 text-xs">
-          <span className="text-slate-500 font-medium me-1">الفلاتر المطبقة:</span>
+          <span className="text-slate-500 font-medium me-1">
+            {language === "ar" ? "الفلاتر المطبقة:" : "Active Filters:"}
+          </span>
 
           {searchQuery && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-medium">
-              بحث: "{searchQuery}"
+              {language === "ar" ? `بحث: "${searchQuery}"` : `Search: "${searchQuery}"`}
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
                 className="hover:text-destructive"
-                aria-label="إلغاء البحث"
+                aria-label={language === "ar" ? "إلغاء البحث" : "Clear search filter"}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -529,12 +590,14 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
 
           {selectedCategory !== "all" && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-medium">
-              القسم: {selectedCategory === "offers" ? "العروض" : selectedCategory}
+              {language === "ar"
+                ? `القسم: ${selectedCategory === "offers" ? "العروض" : getLocalizedCategory(selectedCategory, language)}`
+                : `Category: ${selectedCategory === "offers" ? "Offers" : getLocalizedCategory(selectedCategory, language)}`}
               <button
                 type="button"
                 onClick={() => setSelectedCategory("all")}
                 className="hover:text-destructive"
-                aria-label="إلغاء تصفية القسم"
+                aria-label={language === "ar" ? "إلغاء تصفية القسم" : "Clear category filter"}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -543,12 +606,12 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
 
           {onlyInStock && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
-              المتوفر بالمخزون
+              {t("products.inStock")}
               <button
                 type="button"
                 onClick={() => setOnlyInStock(false)}
                 className="hover:text-destructive"
-                aria-label="إلغاء شرط التوفر"
+                aria-label={language === "ar" ? "إلغاء شرط التوفر" : "Clear in-stock filter"}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -557,12 +620,12 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
 
           {onlyOffers && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-800 font-medium">
-              الخصومات فقط
+              {language === "ar" ? "الخصومات فقط" : "Discounts Only"}
               <button
                 type="button"
                 onClick={() => setOnlyOffers(false)}
                 className="hover:text-destructive"
-                aria-label="إلغاء شرط الخصم"
+                aria-label={language === "ar" ? "إلغاء شرط الخصم" : "Clear discount filter"}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -571,12 +634,12 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
 
           {priceRange < maxCatalogPrice && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-medium">
-              السعر حتى: {formatPrice(priceRange)}
+              {language === "ar" ? "السعر حتى:" : "Price up to:"} {formatPrice(priceRange)}
               <button
                 type="button"
                 onClick={() => setPriceRange(maxCatalogPrice)}
                 className="hover:text-destructive"
-                aria-label="إلغاء تصفية السعر"
+                aria-label={language === "ar" ? "إلغاء تصفية السعر" : "Clear price filter"}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -590,7 +653,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
             className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl h-7 px-2.5 ms-auto"
           >
             <RotateCcw className="w-3 h-3 me-1" />
-            مسح الكل
+            {language === "ar" ? "مسح الكل" : "Clear All"}
           </Button>
         </div>
       )}
@@ -601,16 +664,16 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
           <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
             <XCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-lg font-bold text-slate-800 mb-1">لا توجد منتجات تطابق خياراتكِ</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-1">{t("products.emptyCatalog")}</h2>
           <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
-            جربي تعديل خيارات البحث، توسيع نطاق السعر، أو مسح الفلاتر لعرض كافة المنتجات المتوفرة.
+            {t("products.emptyCatalogDesc")}
           </p>
           <Button
             onClick={handleResetFilters}
             className="rounded-xl h-11 px-6 text-xs font-semibold gap-2 shadow-xs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            إعادة تعيين جميع الفلاتر
+            {t("products.resetFilters")}
           </Button>
         </div>
       ) : (

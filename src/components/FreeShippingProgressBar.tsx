@@ -1,7 +1,10 @@
 import { Truck, CheckCircle2, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useLanguage } from "@/context/LanguageContext";
+import { useCurrency } from "@/context/CurrencyContext";
+import { useStoreSettings } from "@/context/StoreSettingsContext";
 
-export const FREE_SHIPPING_THRESHOLD = 250; // ج.م
+export const FREE_SHIPPING_THRESHOLD = 250; // default fallback
 
 interface FreeShippingProgressBarProps {
   total: number;
@@ -12,15 +15,20 @@ export function FreeShippingProgressBar({
   total,
   showLinkToProducts = true,
 }: FreeShippingProgressBarProps) {
-  const diff = FREE_SHIPPING_THRESHOLD - total;
+  const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
+  const { settings } = useStoreSettings();
+
+  const threshold = settings?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD;
+  const diff = threshold - total;
   const isFree = diff <= 0;
   const progressPercent = isFree
     ? 100
-    : Math.max(8, Math.min(100, Math.round((total / FREE_SHIPPING_THRESHOLD) * 100)));
+    : Math.max(8, Math.min(100, Math.round((total / threshold) * 100)));
 
   return (
     <aside
-      aria-label="شريط تقدم التوصيل المجاني"
+      aria-label={t("freeShippingBar.ariaLabel")}
       className={`rounded-2xl p-4 transition-all duration-300 border ${
         isFree
           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-950 dark:text-emerald-200"
@@ -34,20 +42,14 @@ export function FreeShippingProgressBar({
               <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
-              <span>مبروك! لقد حصلتِ على توصيل مجاني لطلبكِ 🎉</span>
+              <span>{t("freeShippingBar.unlocked")}</span>
             </>
           ) : (
             <>
               <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
                 <Truck className="w-3.5 h-3.5" />
               </div>
-              <span>
-                أضيفي منتجات بقيمة{" "}
-                <span className="font-bold text-primary underline decoration-primary/40 underline-offset-2">
-                  {diff.toFixed(2)} ج.م
-                </span>{" "}
-                واحصلي على شحن مجاني! 🚚
-              </span>
+              <span>{t("freeShippingBar.remaining").replace("{amount}", formatPrice(diff))}</span>
             </>
           )}
         </div>
@@ -58,7 +60,7 @@ export function FreeShippingProgressBar({
             className="text-[11px] sm:text-xs font-bold text-primary hover:underline flex items-center gap-1 shrink-0"
           >
             <Sparkles className="w-3 h-3" />
-            أضيفي المزيد
+            {t("freeShippingBar.addMore")}
           </Link>
         )}
       </div>
@@ -74,8 +76,10 @@ export function FreeShippingProgressBar({
       </div>
 
       <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-1.5 px-0.5">
-        <span>0 ج.م</span>
-        <span className="font-medium">حد الشحن المجاني ({FREE_SHIPPING_THRESHOLD} ج.م)</span>
+        <span>{formatPrice(0)}</span>
+        <span className="font-medium">
+          {t("freeShippingBar.thresholdLabel").replace("{amount}", formatPrice(threshold))}
+        </span>
       </div>
     </aside>
   );

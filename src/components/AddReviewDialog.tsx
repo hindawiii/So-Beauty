@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { addReview } from "@/lib/reviews";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface AddReviewDialogProps {
   onReviewAdded?: () => void;
@@ -27,6 +28,7 @@ export function AddReviewDialog({
   productName,
   triggerButton,
 }: AddReviewDialogProps) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [rating, setRating] = useState(5);
@@ -40,15 +42,11 @@ export function AddReviewDialog({
     const cleanBody = body.trim();
 
     if (!cleanName) {
-      toast.error("يرجى كتابة اسمكِ الكريم");
+      toast.error(t("addReviewDialog.nameRequired"));
       return;
     }
     if (!cleanBody) {
-      toast.error(
-        productId
-          ? `يرجى كتابة رأيكِ وتجربتكِ مع ${productName || "المنتج"}`
-          : "يرجى كتابة تجربتكِ مع المنتجات",
-      );
+      toast.error(t("addReviewDialog.bodyRequired"));
       return;
     }
 
@@ -62,7 +60,7 @@ export function AddReviewDialog({
         product_name: productName,
       });
 
-      toast.success("شكراً لكِ! تم نشر تقييمكِ بنجاح 🌸✨");
+      toast.success(t("addReviewDialog.successToast"));
       setName("");
       setBody("");
       setRating(5);
@@ -71,7 +69,7 @@ export function AddReviewDialog({
         onReviewAdded();
       }
     } catch {
-      toast.error("حدث خطأ أثناء حفظ التقييم، يرجى المحاولة مرة أخرى.");
+      toast.error(t("addReviewDialog.errorToast"));
     } finally {
       setIsSubmitting(false);
     }
@@ -85,10 +83,10 @@ export function AddReviewDialog({
         ) : (
           <Button
             variant="outline"
-            className="gap-2 h-11 px-5 border-primary/30 hover:border-primary hover:bg-primary/5 text-primary rounded-xl font-medium shadow-xs transition-all"
+            className="gap-2 h-11 px-5 border-primary/30 hover:border-primary hover:bg-primary/5 text-primary rounded-xl font-medium shadow-xs transition-all cursor-pointer"
           >
             <MessageSquareHeart className="w-4 h-4" />
-            <span>شاركينا تجربتكِ</span>
+            <span>{t("addReviewDialog.title")}</span>
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           </Button>
         )}
@@ -97,13 +95,17 @@ export function AddReviewDialog({
       <DialogContent className="sm:max-w-md rounded-2xl p-6">
         <DialogHeader className="text-start space-y-2">
           <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <span>{productName ? `تقييم ${productName}` : "شاركينا رأيكِ وتجربتكِ"}</span>
+            <span>
+              {productName
+                ? t("addReviewDialog.titleProduct").replace("{product}", productName)
+                : t("addReviewDialog.title")}
+            </span>
             <Sparkles className="w-4 h-4 text-primary" />
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-600 leading-relaxed">
             {productName
-              ? `رأيكِ الصادق في "${productName}" يساعد أخواتكِ العميلات في اختيار المنتج المناسب لعنايتهن اليومية.`
-              : "رأيكِ الصادق يُسعدنا ويساعد عميلاتنا الجدد في اختيار الروتين الأنسب لبشرتهن."}
+              ? t("addReviewDialog.descProduct").replace("{product}", productName)
+              : t("addReviewDialog.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,7 +113,7 @@ export function AddReviewDialog({
           {/* Rating Stars Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-800 mb-2">
-              درجة رضاكِ عن {productName ? "المنتج" : "الخدمة"}
+              {t("addReviewDialog.satisfactionLabel")}
             </label>
             <div className="flex items-center gap-1.5 p-2 bg-muted/40 rounded-xl w-fit">
               {[1, 2, 3, 4, 5].map((star) => {
@@ -123,7 +125,7 @@ export function AddReviewDialog({
                     onClick={() => setRating(star)}
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(0)}
-                    className="p-1 rounded-lg hover:scale-110 focus:outline-none transition-transform"
+                    className="p-1 rounded-lg hover:scale-110 focus:outline-none transition-transform cursor-pointer"
                     aria-label={`تقييم ${star} من 5`}
                   >
                     <Star
@@ -137,11 +139,11 @@ export function AddReviewDialog({
                 );
               })}
               <span className="text-sm font-semibold text-slate-700 ms-3">
-                {rating === 5 && "ممتاز جداً 🌟"}
-                {rating === 4 && "جيد جداً 👍"}
-                {rating === 3 && "جيد ✨"}
-                {rating === 2 && "مقبول"}
-                {rating === 1 && "يحتاج تحسين"}
+                {rating === 5 && t("addReviewDialog.star5")}
+                {rating === 4 && t("addReviewDialog.star4")}
+                {rating === 3 && t("addReviewDialog.star3")}
+                {rating === 2 && t("addReviewDialog.star2")}
+                {rating === 1 && t("addReviewDialog.star1")}
               </span>
             </div>
           </div>
@@ -152,7 +154,7 @@ export function AddReviewDialog({
               htmlFor="review-name"
               className="block text-sm font-medium text-slate-800 mb-1.5"
             >
-              اسمكِ الكريم أو اللقب
+              {t("addReviewDialog.nameLabel")}
             </label>
             <Input
               id="review-name"
@@ -160,7 +162,7 @@ export function AddReviewDialog({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="مثال: سارة، أو مريم د."
+              placeholder={t("addReviewDialog.namePlaceholder")}
               className="h-11 rounded-xl text-base"
               maxLength={50}
             />
@@ -172,7 +174,7 @@ export function AddReviewDialog({
               htmlFor="review-body"
               className="block text-sm font-medium text-slate-800 mb-1.5"
             >
-              {productName ? `تفاصيل تجربتكِ مع ${productName}` : "تفاصيل تجربتكِ مع المنتجات"}
+              {t("addReviewDialog.bodyLabel")}
             </label>
             <Textarea
               id="review-body"
@@ -180,15 +182,15 @@ export function AddReviewDialog({
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder={
-                productName
-                  ? `شاركينا كيف شعرتِ بعد استخدام ${productName}، ملمسه وتأثيره على بشرتكِ...`
-                  : "شاركينا شعوركِ بعد استخدام المنتجات، تأثيرها على بشرتكِ، أو تجربتكِ مع خدمة التوصيل والدعم..."
-              }
+              placeholder={t("addReviewDialog.bodyPlaceholder")}
               className="rounded-xl text-sm leading-relaxed resize-none"
               maxLength={400}
             />
-            <p className="text-xs text-muted-foreground mt-1 text-end">{body.length} / 400 حرف</p>
+            <p className="text-xs text-muted-foreground mt-1 text-end">
+              {t("addReviewDialog.charCount")
+                .replace("{current}", String(body.length))
+                .replace("{max}", "400")}
+            </p>
           </div>
 
           {/* Submit Buttons */}
@@ -197,16 +199,16 @@ export function AddReviewDialog({
               type="button"
               variant="ghost"
               onClick={() => setOpen(false)}
-              className="h-11 px-4 rounded-xl text-slate-600"
+              className="h-11 px-4 rounded-xl text-slate-600 cursor-pointer"
             >
-              إلغاء
+              {t("addReviewDialog.cancel")}
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="h-11 px-6 rounded-xl font-medium min-w-[120px]"
+              className="h-11 px-6 rounded-xl font-medium min-w-[120px] cursor-pointer"
             >
-              {isSubmitting ? "جاري النشر..." : "نشر التقييم"}
+              {isSubmitting ? t("addReviewDialog.submitting") : t("addReviewDialog.submit")}
             </Button>
           </div>
         </form>

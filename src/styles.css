@@ -171,31 +171,49 @@
 
 /* 1. 3D Tilt & Lift Effect */
 .card-motion-tilt {
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease;
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s ease;
   transform-style: preserve-3d;
   perspective: 1000px;
 }
 .card-motion-tilt:hover {
   transform: perspective(1000px) rotateX(4deg) rotateY(-4deg) translateY(-6px);
-  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 16px 32px -8px rgba(0, 0, 0, 0.12),
+    0 8px 16px -4px rgba(0, 0, 0, 0.06);
 }
 
 /* 2. Floating Jump / Bounce Effect */
 .card-motion-jump {
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.28s ease;
 }
 .card-motion-jump:hover {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 /* 3. Subtle Playful Shake / Haptic Wiggle on Hover */
 @keyframes playfulWiggle {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(-1.5deg) scale(1.01); }
-  50% { transform: rotate(1.5deg) scale(1.01); }
-  75% { transform: rotate(-1deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-1.5deg) scale(1.01);
+  }
+  50% {
+    transform: rotate(1.5deg) scale(1.01);
+  }
+  75% {
+    transform: rotate(-1deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 .card-motion-shake:hover {
   animation: playfulWiggle 0.45s ease-in-out;
@@ -244,11 +262,16 @@
 
 /* 7. Subtle Add-To-Cart Success Pulse Animation */
 @keyframes successPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .animate-cart-success {
   animation: successPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-

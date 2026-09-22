@@ -12,19 +12,27 @@ export interface StoreBrandingSettings {
   freeShippingThreshold: number;
   deliveryFee: number;
   bannerNotice: string;
+  bannerNotice_en?: string;
   bannerSubNotice: string;
+  bannerSubNotice_en?: string;
   bannerIcon?: "sparkles" | "gift" | "truck" | "crown" | "shield" | "quote" | "none";
   aboutTitle: string;
+  aboutTitle_en?: string;
   aboutDescription: string;
+  aboutDescription_en?: string;
   logoUrl?: string; // Optional logo image URL for custom branding
   isDemoMode: boolean;
   adminPin: string;
 
   // Dynamic Homepage Sections Configuration
   heroTitle?: string;
+  heroTitle_en?: string;
   heroSubtitle?: string;
+  heroSubtitle_en?: string;
   heroPrimaryCtaText?: string;
+  heroPrimaryCtaText_en?: string;
   heroSecondaryCtaText?: string;
+  heroSecondaryCtaText_en?: string;
   heroImageUrl?: string;
 
   // Features (4 Trust Badges)
@@ -82,20 +90,30 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   freeShippingThreshold: 50000,
   deliveryFee: 3500,
   bannerNotice: "عناية طبيعية متكاملة بكل تفاصيل بشرتك",
+  bannerNotice_en: "Complete Natural Care Tailored to Every Detail of Your Skin",
   bannerSubNotice: "من الترطيب إلى النضارة، اكتشفي ما يلائمكِ بعناية. تسوّقي الآن",
+  bannerSubNotice_en: "From deep hydration to radiant glow, discover your personalized routine. Shop now.",
   bannerIcon: "sparkles",
   aboutTitle: "روائع العناية",
+  aboutTitle_en: "Art of Natural Skincare",
   aboutDescription:
     "نسعى لتقديم أفضل منتجات العناية الطبيعية بالبشرة بأسعار تنافسية وجودة عالية. جميع منتجاتنا أصلية بنسبة 100%.",
+  aboutDescription_en:
+    "We strive to deliver the finest natural skincare solutions at competitive prices with uncompromising quality. 100% authentic and ethically crafted.",
   logoUrl: "",
   isDemoMode: false,
   adminPin: "2026",
 
   heroTitle: "جمالكِ الطبيعي يبدأ من هنا",
+  heroTitle_en: "Natural Beauty Starts Here",
   heroSubtitle:
     "اكتشفي مجموعة So Beauty من منتجات العناية الطبيعية بالبشرة — نقاء نباتي وإشراقة تدوم.",
+  heroSubtitle_en:
+    "Discover the So Beauty collection of pure botanical skincare — clean botanicals, radiant glow that lasts.",
   heroPrimaryCtaText: "تسوّق الآن",
+  heroPrimaryCtaText_en: "Shop Now",
   heroSecondaryCtaText: "شاهد العروض",
+  heroSecondaryCtaText_en: "Explore Offers",
   heroImageUrl: "",
 
   feature1Title: "نتائج فعّالة",
@@ -155,41 +173,38 @@ interface StoreSettingsContextType {
 const StoreSettingsContext = createContext<StoreSettingsContextType | null>(null);
 
 export function StoreSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<StoreBrandingSettings>(() => {
-    if (typeof window === "undefined") return DEFAULT_STORE_SETTINGS;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return { ...DEFAULT_STORE_SETTINGS, ...JSON.parse(saved) };
-      }
-    } catch (e) {
-      console.warn("Failed to load store settings from localStorage:", e);
-    }
-    return DEFAULT_STORE_SETTINGS;
-  });
+  // Always default to DEFAULT_STORE_SETTINGS to guarantee SSR hydration match
+  const [settings, setSettings] = useState<StoreBrandingSettings>(DEFAULT_STORE_SETTINGS);
 
-  const [hasBackup, setHasBackup] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return !!localStorage.getItem(BACKUP_STORAGE_KEY);
-  });
+  const [hasBackup, setHasBackup] = useState<boolean>(false);
 
   // Sandbox preview state
   const [previewSettings, setPreviewSettings] = useState<Partial<StoreBrandingSettings> | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      try {
-        const sess = sessionStorage.getItem("so_beauty_sandbox_preview");
-        return sess ? JSON.parse(sess) : null;
-      } catch {
-        return null;
-      }
-    },
+    null,
   );
 
-  const [previewThemeTitle, setPreviewThemeTitle] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return sessionStorage.getItem("so_beauty_sandbox_preview_title");
-  });
+  const [previewThemeTitle, setPreviewThemeTitle] = useState<string | null>(null);
+
+  // Hydrate settings, backup, and sandbox session after mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setSettings({ ...DEFAULT_STORE_SETTINGS, ...JSON.parse(saved) });
+      }
+      setHasBackup(!!localStorage.getItem(BACKUP_STORAGE_KEY));
+      const sess = sessionStorage.getItem("so_beauty_sandbox_preview");
+      if (sess) {
+        setPreviewSettings(JSON.parse(sess));
+      }
+      const title = sessionStorage.getItem("so_beauty_sandbox_preview_title");
+      if (title) {
+        setPreviewThemeTitle(title);
+      }
+    } catch (e) {
+      console.warn("Failed to load store settings from client storage:", e);
+    }
+  }, []);
 
   // Effective settings are merged: preview overrides settings when in sandbox
   const effectiveSettings = useMemo(() => {

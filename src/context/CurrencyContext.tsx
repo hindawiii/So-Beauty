@@ -396,7 +396,18 @@ function detectInitialCurrency(): CurrencyCode {
 }
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState<CurrencyCode>(() => detectInitialCurrency());
+  // Always default to 'SDG' (store's home currency in Sudan) on initial render to guarantee SSR hydration match
+  const [currency, setCurrencyState] = useState<CurrencyCode>("SDG");
+
+  // Detect and synchronize currency preference after client mount
+  useEffect(() => {
+    try {
+      const detected = detectInitialCurrency();
+      setCurrencyState(detected);
+    } catch {
+      // Safe fallback
+    }
+  }, []);
 
   // Silent background IP verification on initial load (only if user hasn't explicitly chosen yet)
   useEffect(() => {

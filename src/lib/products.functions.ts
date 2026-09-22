@@ -8,12 +8,16 @@ import {
   cleanProductDescription,
   extractProductGallery,
 } from "./product-images";
+import { encodeProductI18n, extractProductI18n } from "./product-localization";
 
-function attachGalleryToProduct(p: Product): Product {
+function attachMetadataToProduct(p: Product): Product {
   const gallery = extractProductGallery(p);
+  const i18n = extractProductI18n(p);
   return {
     ...p,
     gallery_images: gallery.length > 1 ? gallery : undefined,
+    name_en: p.name_en || i18n.name_en || null,
+    description_en: p.description_en || i18n.description_en || null,
   };
 }
 
@@ -45,7 +49,7 @@ export const listProducts = createServerFn({ method: "GET" })
         if (data?.category) q = q.eq("category", data.category as never);
         const { data: rows, error } = await q;
         if (!error && rows && rows.length > 0) {
-          return (rows as Product[]).map(attachGalleryToProduct);
+          return (rows as Product[]).map(attachMetadataToProduct);
         }
       } catch (err) {
         console.warn("[Products] Supabase query failed, using in-memory fallback:", err);
@@ -57,7 +61,7 @@ export const listProducts = createServerFn({ method: "GET" })
     if (data?.category) {
       items = items.filter((p) => p.category === data.category);
     }
-    return items.map(attachGalleryToProduct);
+    return items.map(attachMetadataToProduct);
   });
 
 export const getProduct = createServerFn({ method: "GET" })
@@ -73,7 +77,7 @@ export const getProduct = createServerFn({ method: "GET" })
           .eq("is_active", true)
           .maybeSingle();
         if (!error && row) {
-          return attachGalleryToProduct(row as Product);
+          return attachMetadataToProduct(row as Product);
         }
       } catch (err) {
         console.warn("[Products] Supabase getProduct query failed, using fallback:", err);
@@ -81,7 +85,7 @@ export const getProduct = createServerFn({ method: "GET" })
     }
 
     const found = MOCK_PRODUCTS.find((p) => p.id === data.id && p.is_active);
-    return found ? attachGalleryToProduct(found) : null;
+    return found ? attachMetadataToProduct(found) : null;
   });
 
 /**
@@ -100,13 +104,13 @@ export const adminListAllProducts = createServerFn({ method: "GET" })
           .select("*")
           .order("created_at", { ascending: false });
         if (!error && rows && rows.length > 0) {
-          return (rows as Product[]).map(attachGalleryToProduct);
+          return (rows as Product[]).map(attachMetadataToProduct);
         }
       } catch (err) {
         console.warn("[Admin Products] Supabase query failed, using fallback:", err);
       }
     }
-    return MOCK_PRODUCTS.map(attachGalleryToProduct);
+    return MOCK_PRODUCTS.map(attachMetadataToProduct);
   });
 
 /**
@@ -167,6 +171,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       name: string;
+      name_en?: string | null;
       category: Database["public"]["Enums"]["product_category"];
       price: number;
       original_price?: number | null;
@@ -174,6 +179,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       image_url?: string;
       gallery_images?: string[];
       description?: string;
+      description_en?: string | null;
       is_featured?: boolean;
       is_active?: boolean;
       adminPin?: string;
@@ -190,15 +196,23 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       data.gallery_images && data.gallery_images.length > 1
         ? encodeProductGallery(data.gallery_images)
         : "";
-    const finalDescription = galleryTag
-      ? rawDesc
-        ? `${rawDesc}\n\n${galleryTag}`
-        : galleryTag
-      : rawDesc || null;
+    const i18nTag = encodeProductI18n({
+      name_en: data.name_en,
+      description_en: data.description_en,
+    });
+
+    let finalDescription = rawDesc;
+    if (galleryTag) {
+      finalDescription = finalDescription ? `${finalDescription}\n\n${galleryTag}` : galleryTag;
+    }
+    if (i18nTag) {
+      finalDescription = finalDescription ? `${finalDescription}\n\n${i18nTag}` : i18nTag;
+    }
 
     const newProduct: Product = {
       id: newId,
       name: data.name.trim(),
+      name_en: data.name_en?.trim() || null,
       category: data.category,
       price: Math.max(0, Number(data.price) || 0),
       original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
@@ -206,7 +220,8 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
       gallery_images:
         data.gallery_images && data.gallery_images.length > 1 ? data.gallery_images : undefined,
-      description: finalDescription,
+      description: finalDescription || null,
+      description_en: data.description_en?.trim() || null,
       is_featured: data.is_featured ?? false,
       is_active: data.is_active ?? true,
       created_at: now,
@@ -250,6 +265,7 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
     (data: {
       id: string;
       name: string;
+      name_en?: string | null;
       category: Database["public"]["Enums"]["product_category"];
       price: number;
       original_price?: number | null;
@@ -257,6 +273,7 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
       image_url?: string;
       gallery_images?: string[];
       description?: string;
+      description_en?: string | null;
       is_featured?: boolean;
       is_active?: boolean;
       adminPin?: string;
@@ -287,17 +304,39 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
         ? encodeProductGallery(galleryImagesToUse)
         : "";
 
-    const finalDescription = galleryTag
-      ? rawDesc
-        ? `${rawDesc}\n\n${galleryTag}`
-        : galleryTag
-      : rawDesc || null;
+    const resolvedNameEn =
+      data.name_en !== undefined
+        ? data.name_en?.trim() || null
+        : idx !== -1
+          ? (MOCK_PRODUCTS[idx].name_en ?? null)
+          : null;
+
+    const resolvedDescEn =
+      data.description_en !== undefined
+        ? data.description_en?.trim() || null
+        : idx !== -1
+          ? (MOCK_PRODUCTS[idx].description_en ?? null)
+          : null;
+
+    const i18nTag = encodeProductI18n({
+      name_en: resolvedNameEn,
+      description_en: resolvedDescEn,
+    });
+
+    let finalDescription = rawDesc;
+    if (galleryTag) {
+      finalDescription = finalDescription ? `${finalDescription}\n\n${galleryTag}` : galleryTag;
+    }
+    if (i18nTag) {
+      finalDescription = finalDescription ? `${finalDescription}\n\n${i18nTag}` : i18nTag;
+    }
 
     let updated: Product;
     if (idx !== -1) {
       MOCK_PRODUCTS[idx] = {
         ...MOCK_PRODUCTS[idx],
         name: data.name.trim(),
+        name_en: resolvedNameEn,
         category: data.category,
         price: Math.max(0, Number(data.price) || 0),
         original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
@@ -305,7 +344,8 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
         image_url: data.image_url?.trim() || MOCK_PRODUCTS[idx].image_url,
         gallery_images:
           galleryImagesToUse && galleryImagesToUse.length > 1 ? galleryImagesToUse : undefined,
-        description: finalDescription,
+        description: finalDescription || null,
+        description_en: resolvedDescEn,
         is_featured: data.is_featured ?? MOCK_PRODUCTS[idx].is_featured,
         is_active: data.is_active ?? MOCK_PRODUCTS[idx].is_active,
         updated_at: now,
@@ -315,6 +355,7 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
       updated = {
         id: data.id,
         name: data.name.trim(),
+        name_en: resolvedNameEn,
         category: data.category,
         price: Math.max(0, Number(data.price) || 0),
         original_price: data.original_price ? Math.max(0, Number(data.original_price)) : null,
@@ -322,7 +363,8 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
         image_url: data.image_url?.trim() || "/src/assets/product-1.jpg",
         gallery_images:
           galleryImagesToUse && galleryImagesToUse.length > 1 ? galleryImagesToUse : undefined,
-        description: finalDescription,
+        description: finalDescription || null,
+        description_en: resolvedDescEn,
         is_featured: data.is_featured ?? false,
         is_active: data.is_active ?? true,
         created_at: now,

@@ -5,7 +5,9 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { useCart } from "@/hooks/useCart";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { resolveProductImage } from "@/lib/product-images";
+import { getLocalizedProductName } from "@/lib/product-localization";
 import { FreeShippingProgressBar } from "@/components/FreeShippingProgressBar";
 import { REGIONAL_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/shipping";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ function CartPage() {
   const { items, setQty, remove, clear, total } = useCart();
   const { formatPrice, formatBoth, currency } = useCurrency();
   const { settings } = useStoreSettings();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
 
@@ -85,10 +88,10 @@ function CartPage() {
             className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer self-start sm:self-auto"
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>العودة لمتابعة التسوق</span>
+            <span>{t("cart.backToShopping")}</span>
           </Link>
           <span className="text-xs text-muted-foreground font-medium self-start sm:self-auto ps-1 sm:ps-0">
-            سلة التسوق الآمنة
+            {t("cart.secureCartBadge")}
           </span>
         </div>
 
@@ -96,18 +99,16 @@ function CartPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100">
-              سلة التسوق
+              {t("cart.title")}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              راجعي المنتجات والكميات المختارة قبل المتابعة لإنهاء الطلب.
-            </p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">{t("cart.subtitle")}</p>
           </div>
           {items.length > 0 && (
             <div className="flex items-center gap-3">
               <Link to="/products">
                 <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-10 text-xs">
                   <ShoppingBag className="w-3.5 h-3.5" />
-                  متابعة التسوق
+                  {t("cart.continueShopping")}
                 </Button>
               </Link>
               <Button
@@ -117,7 +118,7 @@ function CartPage() {
                 className="text-destructive hover:bg-destructive/10 rounded-xl gap-1.5 h-10 text-xs"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                تفريغ السلة
+                {t("cart.clearCart")}
               </Button>
             </div>
           )}
@@ -126,9 +127,7 @@ function CartPage() {
         {/* Clear Cart Confirmation Dialog */}
         {showClearConfirm && (
           <div className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-destructive">
-            <span className="text-sm font-semibold">
-              هل أنتِ متأكدة من رغبتكِ في حذف جميع المنتجات من السلة؟
-            </span>
+            <span className="text-sm font-semibold">{t("cart.clearConfirmText")}</span>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -136,11 +135,11 @@ function CartPage() {
                 onClick={() => {
                   clear();
                   setShowClearConfirm(false);
-                  toast.success("تم تفريغ السلة بنجاح");
+                  toast.success(t("cart.clearedSuccessToast"));
                 }}
                 className="rounded-xl h-9 px-4 text-xs font-semibold"
               >
-                نعم، تفريغ السلة
+                {t("cart.clearConfirmYes")}
               </Button>
               <Button
                 size="sm"
@@ -148,7 +147,7 @@ function CartPage() {
                 onClick={() => setShowClearConfirm(false)}
                 className="rounded-xl h-9 px-4 text-xs"
               >
-                إلغاء
+                {t("cart.clearConfirmCancel")}
               </Button>
             </div>
           </div>
@@ -161,17 +160,14 @@ function CartPage() {
               <ShoppingBag className="w-10 h-10" />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">
-              سلتكِ فارغة حالياً
+              {t("cart.emptyTitle")}
             </h2>
-            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-              لم تقومي بإضافة أي منتج بعد. تصفحي أحدث منتجات العناية بالبشرة وبوكسات الجمال المختارة
-              لكِ.
-            </p>
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed">{t("cart.emptyDesc")}</p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link to="/products">
                 <Button className="w-full sm:w-auto h-12 px-7 rounded-xl font-semibold gap-2 shadow-xs">
                   <Sparkles className="w-4 h-4" />
-                  تصفح المنتجات الآن
+                  {t("cart.startShopping")}
                 </Button>
               </Link>
               <Link to="/boxes">
@@ -179,7 +175,7 @@ function CartPage() {
                   variant="outline"
                   className="w-full sm:w-auto h-12 px-7 rounded-xl font-semibold"
                 >
-                  بوكسات العناية
+                  {t("cart.careBoxes")}
                 </Button>
               </Link>
             </div>
@@ -209,13 +205,13 @@ function CartPage() {
                         params={{ id: it.id }}
                         className="font-bold text-slate-900 hover:text-primary transition-colors text-base block truncate"
                       >
-                        {it.name}
+                        {getLocalizedProductName(it, language)}
                       </Link>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-primary font-bold text-sm">
                           {formatPrice(Number(it.price))}
                         </span>
-                        <span className="text-xs text-slate-400">للقطعة</span>
+                        <span className="text-xs text-slate-400">{t("cart.unitPrice")}</span>
                       </div>
 
                       {/* Quantity and Actions Bar */}
@@ -225,7 +221,7 @@ function CartPage() {
                             type="button"
                             onClick={() => setQty(it.id, it.quantity - 1)}
                             className="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition-colors"
-                            aria-label="تقليل الكمية"
+                            aria-label={t("cart.decreaseQty")}
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
@@ -236,7 +232,7 @@ function CartPage() {
                             type="button"
                             onClick={() => setQty(it.id, it.quantity + 1)}
                             className="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition-colors"
-                            aria-label="زيادة الكمية"
+                            aria-label={t("cart.increaseQty")}
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -253,10 +249,10 @@ function CartPage() {
                             type="button"
                             onClick={() => {
                               remove(it.id);
-                              toast.info(`تم حذف "${it.name}" من السلة`);
+                              toast.info(t("cart.itemRemovedToast").replace("{name}", it.name));
                             }}
                             className="p-2 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                            aria-label="حذف المنتج"
+                            aria-label={t("cart.deleteItem")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -271,15 +267,15 @@ function CartPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-600">
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-muted/40 border border-slate-100">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                  <span>دفع آمن عند الاستلام</span>
+                  <span>{t("cart.guaranteeCod")}</span>
                 </div>
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-muted/40 border border-slate-100">
                   <Truck className="w-4 h-4 text-primary shrink-0" />
-                  <span>توصيل سريع لكافة المدن</span>
+                  <span>{t("cart.guaranteeShipping")}</span>
                 </div>
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-muted/40 border border-slate-100">
                   <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                  <span>منتجات طبيعية ومضمونة 100%</span>
+                  <span>{t("cart.guaranteeAuthentic")}</span>
                 </div>
               </div>
             </div>
@@ -287,7 +283,7 @@ function CartPage() {
             {/* Right Column: Order Summary & City Estimator */}
             <div className="bg-card border border-slate-200/80 rounded-3xl p-6 shadow-xs sticky top-24 space-y-5">
               <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
-                ملخص السلة
+                {t("cart.summaryTitle")}
               </h2>
 
               {/* City Selection for Shipping */}
@@ -297,7 +293,7 @@ function CartPage() {
                   className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"
                 >
                   <MapPin className="w-3.5 h-3.5 text-primary" />
-                  مدينة الشحن والتوصيل:
+                  {t("cart.shippingCityLabel")}
                 </label>
                 <select
                   id="cart-shipping-city"
@@ -307,13 +303,14 @@ function CartPage() {
                 >
                   {activeCities.map((c) => (
                     <option key={c.name} value={c.name}>
-                      {c.name} ({shippingFee === 0 ? "شحن مجاني" : formatPrice(c.rate)})
+                      {c.name} (
+                      {shippingFee === 0 ? t("cart.freeShippingOption") : formatPrice(c.rate)})
                     </option>
                   ))}
                 </select>
                 <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
                   <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>المدة المتوقعة: {deliveryEstimate}</span>
+                  <span>{t("cart.deliveryEstimateLabel").replace("{time}", deliveryEstimate)}</span>
                 </div>
               </div>
 
@@ -323,7 +320,7 @@ function CartPage() {
                 suppressHydrationWarning
               >
                 <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                  <span>مجموع المنتجات:</span>
+                  <span>{t("cart.productsTotal")}</span>
                   <span
                     className="font-medium text-slate-900 dark:text-slate-100"
                     suppressHydrationWarning
@@ -333,10 +330,10 @@ function CartPage() {
                 </div>
 
                 <div className="flex justify-between text-slate-600 dark:text-slate-400 items-center">
-                  <span>تكلفة الشحن:</span>
+                  <span>{t("cart.shipping")}</span>
                   {shippingFee === 0 ? (
                     <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs font-bold">
-                      مجاناً 🎉
+                      {t("cart.shippingFree")}
                     </span>
                   ) : (
                     <span
@@ -353,7 +350,7 @@ function CartPage() {
                   suppressHydrationWarning
                 >
                   <div className="flex justify-between items-baseline font-bold text-base text-slate-900 dark:text-slate-100">
-                    <span>المجموع الكلي:</span>
+                    <span>{t("cart.total")}</span>
                     <span className="text-primary text-xl tracking-tight" suppressHydrationWarning>
                       {finalTotalPrimary}
                     </span>
@@ -374,14 +371,12 @@ function CartPage() {
                 className="w-full h-12 text-base font-semibold rounded-xl gap-2 shadow-xs"
                 onClick={() => navigate({ to: "/checkout" })}
               >
-                <span>متابعة إتمام الطلب</span>
+                <span>{t("cart.checkoutBtn")}</span>
                 <ArrowRight className="w-4 h-4 rtl:rotate-180" />
               </Button>
 
               {!authed && (
-                <p className="text-[11px] text-center text-slate-500">
-                  ✨ يمكنكِ الشراء كزائر فوراً دون الحاجة لتسجيل حساب مسبق
-                </p>
+                <p className="text-[11px] text-center text-slate-500">{t("cart.guestNotice")}</p>
               )}
             </div>
           </div>

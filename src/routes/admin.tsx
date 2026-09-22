@@ -71,7 +71,8 @@ import { LuxePinBoxes } from "@/components/LuxePinBoxes";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { StoreThemingTab } from "@/components/StoreThemingTab";
 import { AdminPinManagerCard } from "@/components/AdminPinManagerCard";
-import { Palette, Settings } from "lucide-react";
+import { AdminLocalizationStudioTab } from "@/components/AdminLocalizationStudioTab";
+import { Palette, Settings, Globe2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -131,9 +132,9 @@ const STATUS_CONFIG: Record<
 
 function AdminDashboardPage() {
   const { settings } = useStoreSettings();
-  const [activeTab, setActiveTab] = useState<"orders" | "inventory" | "theming" | "settings">(
-    "orders",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "orders" | "inventory" | "localization" | "theming" | "settings"
+  >("orders");
 
   // Admin PIN Gate State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -767,7 +768,7 @@ function AdminDashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("orders")}
-            className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-[150px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "orders"
                 ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
@@ -780,7 +781,7 @@ function AdminDashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("inventory")}
-            className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-[150px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "inventory"
                 ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
@@ -792,8 +793,21 @@ function AdminDashboardPage() {
 
           <button
             type="button"
+            onClick={() => setActiveTab("localization")}
+            className={`flex-1 min-w-[150px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+              activeTab === "localization"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <Globe2 className="w-4 h-4 text-indigo-500 shrink-0" />
+            <span>🌐 الترجمة والذكاء الاصطناعي</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("theming")}
-            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-[130px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "theming"
                 ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
@@ -806,7 +820,7 @@ function AdminDashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("settings")}
-            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-[140px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeTab === "settings"
                 ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
@@ -877,9 +891,9 @@ function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setOrderStatusFilter("all")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  className={`px-3.5 py-2 min-h-[38px] rounded-xl font-semibold transition-colors cursor-pointer ${
                     orderStatusFilter === "all"
-                      ? "bg-slate-800 text-white"
+                      ? "bg-slate-800 text-white shadow-xs"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
@@ -892,7 +906,7 @@ function AdminDashboardPage() {
                       key={st}
                       type="button"
                       onClick={() => setOrderStatusFilter(st)}
-                      className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                      className={`px-3.5 py-2 min-h-[38px] rounded-xl font-semibold transition-colors cursor-pointer ${
                         orderStatusFilter === st
                           ? "bg-primary text-white shadow-xs"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1838,6 +1852,20 @@ function AdminDashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 2.5: AI LOCALIZATION & TRANSLATION STUDIO */}
+        {activeTab === "localization" && (
+          <div className="animate-in fade-in duration-200">
+            <AdminLocalizationStudioTab
+              products={products}
+              onProductsUpdated={(updated) => {
+                setProducts(updated);
+                toast.success("تم تحديث وحفظ ترجمات المنتجات بنجاح في النظام!");
+              }}
+              adminPin={settings.adminPin}
+            />
           </div>
         )}
 

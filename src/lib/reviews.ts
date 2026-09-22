@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 export interface Review {
   id: string;
   name: string;
+  name_en?: string;
   rating: number;
   body: string;
+  body_en?: string;
   created_at: string;
   is_verified?: boolean;
   product_id?: string;
@@ -15,32 +17,44 @@ export const INITIAL_REVIEWS: Review[] = [
   {
     id: "seed-1",
     name: "لولي ك.",
+    name_en: "Loli K.",
     rating: 5,
     body: "المنتجات فعلاً غيرت روتين بشرتي، طبيعية وخفيفة ونتيجتها واضحة من أول استخدامين.",
+    body_en:
+      "These products truly transformed my daily skincare routine. Incredibly natural, lightweight, with visible radiance after just two uses.",
     created_at: "2026-09-01T10:00:00Z",
     is_verified: true,
   },
   {
     id: "seed-2",
     name: "سيدة (أم عبد الله)",
+    name_en: "Sayyida (Um Abdullah)",
     rating: 5,
     body: "أحس الفرق من أول أسبوع! النضارة واضحة وتوصيلهم كان سريع ومحترم جداً في أم درمان.",
+    body_en:
+      "Felt the difference within the very first week! The glow is noticeable and delivery was swift and respectful in Omdurman.",
     created_at: "2026-09-03T12:30:00Z",
     is_verified: true,
   },
   {
     id: "seed-3",
     name: "ولاء 😇",
+    name_en: "Walaa 😇",
     rating: 5,
     body: "تجربتي معهم ممتازة والدعم متواجد دايماً على واتساب للإجابة عن كل استفسار. أنصح به بشدة!",
+    body_en:
+      "Outstanding customer experience! Their WhatsApp care consultant was always responsive to every question. Highly recommended!",
     created_at: "2026-09-05T15:45:00Z",
     is_verified: true,
   },
   {
     id: "seed-4",
     name: "مروة الطاهر",
+    name_en: "Marwa Al-Tahir",
     rating: 5,
     body: "أفضل منتجات عناية جربتها في السودان. مكونات أصلية ومضمونة وما سببت لي أي تحسس.",
+    body_en:
+      "The finest skincare products I've experienced in Sudan. Authentic, verified ingredients that caused zero irritation or sensitivity.",
     created_at: "2026-09-07T14:20:00Z",
     is_verified: true,
   },

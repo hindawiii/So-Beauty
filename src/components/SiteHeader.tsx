@@ -27,6 +27,7 @@ import { LuxeSearchModal } from "@/components/LuxeSearchModal";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { SandboxPreviewBanner } from "@/components/SandboxPreviewBanner";
+import { getLocalizedSetting } from "@/lib/product-localization";
 
 export function SiteHeader() {
   const { settings } = useStoreSettings();
@@ -46,7 +47,7 @@ export function SiteHeader() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const nav = [
     { to: "/", label: t("nav.home"), highlight: false },
@@ -79,8 +80,18 @@ export function SiteHeader() {
     }
   };
 
-  const hasLine1 = Boolean(settings.bannerNotice?.trim());
-  const hasLine2 = Boolean(settings.bannerSubNotice?.trim());
+  const localizedBannerNotice = getLocalizedSetting(
+    settings.bannerNotice,
+    language,
+    settings.bannerNotice_en,
+  );
+  const localizedBannerSubNotice = getLocalizedSetting(
+    settings.bannerSubNotice,
+    language,
+    settings.bannerSubNotice_en,
+  );
+  const hasLine1 = Boolean(localizedBannerNotice?.trim());
+  const hasLine2 = Boolean(localizedBannerSubNotice?.trim());
   const showBanner = hasLine1 || hasLine2;
 
   return (
@@ -98,7 +109,7 @@ export function SiteHeader() {
               {hasLine1 && (
                 <div className="flex items-center justify-center gap-1.5 font-bold">
                   {renderBannerIcon()}
-                  <span>{settings.bannerNotice}</span>
+                  <span suppressHydrationWarning>{localizedBannerNotice}</span>
                 </div>
               )}
 
@@ -106,12 +117,12 @@ export function SiteHeader() {
 
               {hasLine2 && (
                 <div className="opacity-95 flex items-center justify-center flex-wrap gap-1 text-[10.5px] sm:text-xs">
-                  <span>{settings.bannerSubNotice}</span>
+                  <span suppressHydrationWarning>{localizedBannerSubNotice}</span>
                   <Link
                     to="/products"
                     className="underline font-bold ms-1 hover:opacity-100 decoration-1 underline-offset-2 transition-opacity"
                   >
-                    تسوّقي الآن
+                    {t("header.shopNow")}
                   </Link>
                 </div>
               )}
@@ -174,19 +185,19 @@ export function SiteHeader() {
             <button
               type="button"
               onClick={() => setIsSearchModalOpen(true)}
-              className="md:hidden relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-muted/60 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0"
-              aria-label="بحث في المنتجات"
-              title="بحث في المتجر"
+              className="md:hidden relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px] rounded-full bg-muted/60 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0"
+              aria-label={t("common.search")}
+              title={t("common.search")}
             >
-              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-200 group-hover:scale-110" />
-              <span className="sr-only">بحث في المتجر</span>
+              <Search className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+              <span className="sr-only">{t("common.search")}</span>
             </button>
 
             {/* 2. Desktop Utility Group: Order Tracking (>= lg) */}
             <div className="hidden lg:flex items-center ps-1">
               <Link
                 to="/track-order"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors border border-transparent hover:border-border/60 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors border border-transparent hover:border-border/60 cursor-pointer min-h-[36px]"
                 title={t("header.trackOrderBtn")}
               >
                 <Truck className="w-3.5 h-3.5 text-primary" />
@@ -207,7 +218,7 @@ export function SiteHeader() {
             {/* 5. Wishlist Link (Restored on ALL devices including mobile) */}
             <Link
               to="/wishlist"
-              className="relative p-1.5 sm:p-2 md:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-rose-600 hover:bg-muted/70 transition-colors inline-flex cursor-pointer shrink-0"
+              className="relative p-2 sm:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-rose-600 hover:bg-muted/70 transition-colors inline-flex items-center justify-center cursor-pointer shrink-0 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
               aria-label={t("header.wishlistCount")}
               title={t("header.wishlistCount")}
             >
@@ -222,7 +233,7 @@ export function SiteHeader() {
             {/* 6. Shopping Cart Button (Always visible on Mobile, Tablet & PC) */}
             <Link
               to="/cart"
-              className="relative p-1.5 sm:p-2 md:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors cursor-pointer shrink-0"
+              className="relative p-2 sm:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors inline-flex items-center justify-center cursor-pointer shrink-0 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
               aria-label={t("header.cartCount")}
               title={t("header.cartCount")}
             >
@@ -239,9 +250,9 @@ export function SiteHeader() {
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                 <Link
                   to="/account"
-                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-muted/70 text-slate-700 dark:text-slate-200 hover:text-primary transition-colors cursor-pointer"
-                  aria-label="حسابي"
-                  title={`حسابي (${email})`}
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-muted/70 text-slate-700 dark:text-slate-200 hover:text-primary transition-colors cursor-pointer min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
+                  aria-label={t("header.myAccount")}
+                  title={`${t("header.myAccount")} (${email})`}
                 >
                   <User className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Link>
@@ -252,21 +263,21 @@ export function SiteHeader() {
                     await supabase.auth.signOut();
                     navigate({ to: "/", replace: true });
                   }}
-                  className="hidden sm:inline-flex p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                  aria-label="تسجيل الخروج"
-                  title="تسجيل الخروج"
+                  className="hidden sm:inline-flex p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer min-w-[38px] min-h-[38px] items-center justify-center"
+                  aria-label={t("header.logout")}
+                  title={t("header.logout")}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <div className="shrink-0 flex items-center">
-                {/* Mobile (< sm): Sleek compact circular user icon button */}
+                {/* Mobile (< sm): Sleek compact circular user icon button with >= 40px touch zone */}
                 <Link
                   to="/auth"
-                  className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer"
-                  aria-label="تسجيل الدخول"
-                  title="تسجيل الدخول"
+                  className="sm:hidden flex items-center justify-center w-9 h-9 min-w-[38px] min-h-[38px] rounded-full bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer"
+                  aria-label={t("header.login")}
+                  title={t("header.login")}
                 >
                   <User className="w-4 h-4" />
                 </Link>
@@ -275,15 +286,15 @@ export function SiteHeader() {
                 <Link
                   to="/auth"
                   className="hidden sm:inline-flex items-center"
-                  aria-label="تسجيل الدخول"
-                  title="تسجيل الدخول أو إنشاء حساب"
+                  aria-label={t("header.login")}
+                  title={t("header.loginOrCreate")}
                 >
                   <Button
                     size="sm"
                     className="rounded-full text-xs font-bold px-3 sm:px-4 h-8 sm:h-9 cursor-pointer shadow-xs gap-1.5"
                   >
                     <User className="w-3.5 h-3.5" />
-                    <span>دخول</span>
+                    <span>{t("header.login")}</span>
                   </Button>
                 </Link>
               </div>
@@ -292,7 +303,7 @@ export function SiteHeader() {
             {/* 7. Mobile / Tablet Menu Toggle Button (< md) - At the very end of header */}
             <button
               type="button"
-              className="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl hover:bg-muted text-slate-700 dark:text-slate-200 transition-colors cursor-pointer shrink-0"
+              className="md:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px] rounded-xl hover:bg-muted text-slate-700 dark:text-slate-200 transition-colors cursor-pointer shrink-0"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
             >
@@ -334,7 +345,7 @@ export function SiteHeader() {
                     key={idx}
                     to={n.to}
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-between text-sm font-semibold py-2.5 px-3 rounded-xl hover:bg-muted text-slate-800 dark:text-slate-200 transition-colors"
+                    className="flex items-center justify-between text-sm font-semibold py-2.5 px-3 rounded-xl hover:bg-muted text-slate-800 dark:text-slate-200 transition-colors min-h-[44px]"
                   >
                     <span>{n.label}</span>
                     <ChevronLeft className="w-4 h-4 text-muted-foreground rtl:rotate-0 rotate-180" />
@@ -345,11 +356,11 @@ export function SiteHeader() {
                 <Link
                   to="/wishlist"
                   onClick={() => setOpen(false)}
-                  className="flex items-center justify-between text-sm font-semibold py-2.5 px-3 rounded-xl hover:bg-muted text-slate-800 dark:text-slate-200 transition-colors"
+                  className="flex items-center justify-between text-sm font-semibold py-2.5 px-3 rounded-xl hover:bg-muted text-slate-800 dark:text-slate-200 transition-colors min-h-[44px]"
                 >
                   <span className="flex items-center gap-2.5">
                     <Heart className="w-4 h-4 text-rose-500" />
-                    <span>قائمة المفضلة</span>
+                    <span>{t("header.wishlistCount")}</span>
                   </span>
                   {wishlistCount > 0 ? (
                     <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">
@@ -365,8 +376,8 @@ export function SiteHeader() {
               <div className="pt-3 border-t border-border/60 space-y-2">
                 {!email ? (
                   <Link to="/auth" onClick={() => setOpen(false)} className="block w-full">
-                    <Button className="w-full h-11 rounded-xl text-xs font-bold">
-                      تسجيل الدخول / إنشاء حساب جديد
+                    <Button className="w-full h-11 rounded-xl text-xs font-bold cursor-pointer">
+                      {t("header.loginOrCreate")}
                     </Button>
                   </Link>
                 ) : (
@@ -374,11 +385,11 @@ export function SiteHeader() {
                     <Link
                       to="/account"
                       onClick={() => setOpen(false)}
-                      className="flex items-center justify-between text-xs font-semibold py-2 px-3 rounded-xl hover:bg-muted"
+                      className="flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl hover:bg-muted min-h-[44px]"
                     >
                       <span className="flex items-center gap-2">
                         <User className="w-4 h-4 text-primary" />
-                        <span>حسابي الشخصي</span>
+                        <span>{t("header.myAccount")}</span>
                       </span>
                       <span className="text-[11px] text-muted-foreground">{email}</span>
                     </Link>
@@ -386,9 +397,9 @@ export function SiteHeader() {
                     <Link
                       to="/orders"
                       onClick={() => setOpen(false)}
-                      className="flex items-center justify-between text-xs font-semibold py-2 px-3 rounded-xl hover:bg-muted"
+                      className="flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl hover:bg-muted min-h-[44px]"
                     >
-                      <span>سجل طلباتي السابقة</span>
+                      <span>{t("header.orderHistory")}</span>
                       <ChevronLeft className="w-4 h-4 text-muted-foreground rtl:rotate-0 rotate-180" />
                     </Link>
 
@@ -400,11 +411,11 @@ export function SiteHeader() {
                         await supabase.auth.signOut();
                         navigate({ to: "/", replace: true });
                       }}
-                      className="flex items-center justify-between text-xs font-semibold py-2 px-3 rounded-xl hover:bg-rose-50 text-rose-600 transition-colors w-full text-start"
+                      className="flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl hover:bg-rose-50 text-rose-600 transition-colors w-full text-start min-h-[44px] cursor-pointer"
                     >
                       <span className="flex items-center gap-2">
                         <LogOut className="w-4 h-4" />
-                        <span>تسجيل الخروج</span>
+                        <span>{t("header.logout")}</span>
                       </span>
                     </button>
                   </div>

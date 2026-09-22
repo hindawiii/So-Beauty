@@ -16,6 +16,7 @@ export function resolveProductImage(url: string | null | undefined): string {
 }
 
 const GALLERY_REGEX = /<!--GALLERY:(.*?)-->/;
+const I18N_REGEX = /<!--I18N:(.*?)-->/;
 
 /**
  * Extracts gallery image URLs from product metadata or description.
@@ -72,11 +73,11 @@ export function extractProductGallery(
 }
 
 /**
- * Removes embedded gallery tags from description before customer display.
+ * Removes embedded gallery and i18n tags from description before customer display.
  */
 export function cleanProductDescription(desc: string | null | undefined): string {
   if (!desc) return "";
-  return desc.replace(GALLERY_REGEX, "").trim();
+  return desc.replace(GALLERY_REGEX, "").replace(I18N_REGEX, "").trim();
 }
 
 /**

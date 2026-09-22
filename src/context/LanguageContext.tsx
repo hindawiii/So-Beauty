@@ -20,16 +20,20 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const LANGUAGE_STORAGE_KEY = "so_beauty_store_lang_v1";
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(() => {
+  // Always default to 'ar' on initial render to guarantee SSR hydration match
+  const [language, setLanguageState] = useState<Language>("ar");
+
+  // Read stored language preference after initial mount to avoid hydration mismatch
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (saved === "ar" || saved === "en") return saved;
-      // Fallback check browser preference or default to Arabic
-      return "ar";
+      if (saved === "ar" || saved === "en") {
+        setLanguageState(saved);
+      }
     } catch {
-      return "ar";
+      // Storage unavailable or restricted
     }
-  });
+  }, []);
 
   const direction: Direction = useMemo(() => (language === "ar" ? "rtl" : "ltr"), [language]);
   const isRTL = direction === "rtl";

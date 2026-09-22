@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ProductImageViewerProps {
   src: string;
@@ -8,6 +9,8 @@ interface ProductImageViewerProps {
 }
 
 export function ProductImageViewer({ src, alt, isOutOfStock = false }: ProductImageViewerProps) {
+  const { language } = useLanguage();
+  const isAr = language === "ar";
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -132,7 +135,11 @@ export function ProductImageViewer({ src, alt, isOutOfStock = false }: ProductIm
       <div
         ref={containerRef}
         className="relative aspect-square w-full bg-slate-50 dark:bg-slate-900/40 rounded-3xl overflow-hidden border border-border/80 shadow-sm p-4 sm:p-6 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing"
-        aria-label="صورة المنتج، يمكنك التكبير باللمس بإصبعيك أو النقر المزدوج"
+        aria-label={
+          isAr
+            ? "صورة المنتج، يمكنك التكبير باللمس بإصبعيك أو النقر المزدوج"
+            : "Product image, zoom in with pinch or double tap"
+        }
       >
         <img
           src={src}
@@ -156,33 +163,33 @@ export function ProductImageViewer({ src, alt, isOutOfStock = false }: ProductIm
           type="button"
           onClick={() => setScale((prev) => Math.min(prev + 0.5, 3.5))}
           className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1"
-          title="تكبير"
-          aria-label="تكبير صورة المنتج"
+          title={isAr ? "تكبير" : "Zoom In"}
+          aria-label={isAr ? "تكبير صورة المنتج" : "Zoom in product image"}
         >
           <ZoomIn className="w-3.5 h-3.5" />
-          <span className="text-[10px] hidden sm:inline">تكبير</span>
+          <span className="text-[10px] hidden sm:inline">{isAr ? "تكبير" : "Zoom In"}</span>
         </button>
         <button
           type="button"
           onClick={() => setScale((prev) => Math.max(prev - 0.5, 1))}
           disabled={scale <= 1}
           className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-          title="تصغير"
-          aria-label="تصغير صورة المنتج"
+          title={isAr ? "تصغير" : "Zoom Out"}
+          aria-label={isAr ? "تصغير صورة المنتج" : "Zoom out product image"}
         >
           <ZoomOut className="w-3.5 h-3.5" />
-          <span className="text-[10px] hidden sm:inline">تصغير</span>
+          <span className="text-[10px] hidden sm:inline">{isAr ? "تصغير" : "Zoom Out"}</span>
         </button>
         {isZoomed && (
           <button
             type="button"
             onClick={resetZoom}
             className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1"
-            title="إعادة تعيين"
-            aria-label="إعادة تعيين حجم الصورة"
+            title={isAr ? "إعادة تعيين" : "Reset"}
+            aria-label={isAr ? "إعادة تعيين حجم الصورة" : "Reset image zoom"}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="text-[10px] hidden sm:inline">إعادة ضبط</span>
+            <span className="text-[10px] hidden sm:inline">{isAr ? "إعادة ضبط" : "Reset"}</span>
           </button>
         )}
       </div>

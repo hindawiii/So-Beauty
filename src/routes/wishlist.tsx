@@ -47,11 +47,7 @@ function WishlistPage() {
         image_url: item.image_url,
       });
     });
-    toast.success(
-      isRTL
-        ? `تمت إضافة جميع المنتجات (${items.length}) إلى سلة التسوق! 🛍️`
-        : `Added all ${items.length} items to your cart! 🛍️`,
-    );
+    toast.success(t("wishlist.addedAllSuccess").replace("{count}", String(items.length)));
   };
 
   return (
@@ -65,7 +61,7 @@ function WishlistPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer"
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>{isRTL ? "العودة لمتابعة التسوق" : "Back to Shopping"}</span>
+            <span>{t("wishlist.backToShopping")}</span>
           </Link>
           <span className="text-xs text-muted-foreground font-medium">
             {t("header.wishlistCount")}
@@ -84,9 +80,7 @@ function WishlistPage() {
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {isRTL
-                ? "المنتجات التي قمتِ بحفظها لتتذكريها وتطلبيها في أي وقت."
-                : "Items you've saved to remember and order anytime."}
+              {t("wishlist.subtitle")}
             </p>
           </div>
 
@@ -106,7 +100,7 @@ function WishlistPage() {
                 className="text-destructive hover:bg-destructive/10 rounded-xl gap-1.5 h-10 text-xs"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {isRTL ? "تفريغ القائمة" : "Clear List"}
+                {t("wishlist.clearList")}
               </Button>
             </div>
           )}
@@ -115,11 +109,7 @@ function WishlistPage() {
         {/* Clear Confirmation Prompt */}
         {showClearConfirm && (
           <div className="mb-8 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-destructive">
-            <span className="text-sm font-semibold">
-              {isRTL
-                ? "هل أنتِ متأكدة من رغبتكِ في مسح جميع المنتجات من قائمة المفضلة؟"
-                : "Are you sure you want to remove all items from your wishlist?"}
-            </span>
+            <span className="text-sm font-semibold">{t("wishlist.clearConfirmText")}</span>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -127,13 +117,11 @@ function WishlistPage() {
                 onClick={() => {
                   clear();
                   setShowClearConfirm(false);
-                  toast.success(
-                    isRTL ? "تم مسح قائمة المفضلة بنجاح" : "Wishlist cleared successfully",
-                  );
+                  toast.success(t("wishlist.clearedSuccess"));
                 }}
                 className="rounded-xl h-9 px-4 text-xs font-semibold"
               >
-                {isRTL ? "نعم، مسح الكل" : "Yes, Clear All"}
+                {t("wishlist.clearConfirmYes")}
               </Button>
               <Button
                 size="sm"
@@ -163,7 +151,7 @@ function WishlistPage() {
               <Link to="/products">
                 <Button className="w-full sm:w-auto h-12 px-7 rounded-xl font-semibold gap-2 shadow-xs">
                   <Sparkles className="w-4 h-4" />
-                  {isRTL ? "تصفحي منتجاتنا" : "Browse Products"}
+                  {t("wishlist.browseProducts")}
                 </Button>
               </Link>
               <Link to="/boxes">
@@ -172,7 +160,7 @@ function WishlistPage() {
                   className="w-full sm:w-auto h-12 px-7 rounded-xl font-semibold gap-2"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  {t("nav.giftBoxes")}
+                  {t("wishlist.careBoxes")}
                 </Button>
               </Link>
             </div>
@@ -181,14 +169,12 @@ function WishlistPage() {
           /* Wishlist Items Grid */
           <div className="space-y-6">
             <div className="flex items-center justify-between text-xs sm:text-sm text-slate-500 px-1">
-              <span>
-                عرض <strong className="text-slate-900">{count}</strong> منتج محفوظ
-              </span>
+              <span>{t("wishlist.viewingCount").replace("{count}", String(count))}</span>
               <Link
                 to="/products"
                 className="text-primary hover:underline font-semibold flex items-center gap-1"
               >
-                <span>استكشاف المزيد</span>
+                <span>{t("wishlist.exploreMore")}</span>
                 <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </Link>
             </div>

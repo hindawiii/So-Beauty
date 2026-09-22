@@ -136,18 +136,43 @@ function getSupabaseClient() {
   }
 }
 
+// Helper to sanitize text input from potential script injection or malformed characters
+function sanitizeInput(str: string): string {
+  return str.replace(/[<>]/g, "").trim();
+}
+
 const itemSchema = z.object({
-  product_id: z.string().uuid(),
-  quantity: z.number().int().min(1).max(50),
+  product_id: z.string().min(1, "معرف المنتج غير صالح"),
+  quantity: z
+    .number()
+    .int()
+    .min(1, "الكمية يجب أن تكون 1 على الأقل")
+    .max(50, "الحد الأقصى للكمية هو 50"),
 });
 
 const createOrderSchema = z.object({
-  full_name: z.string().trim().min(2, "الاسم الكامل مطلوب (حرفين على الأقل)").max(100),
-  phone: z.string().trim().min(6, "رقم الهاتف غير صالح").max(20),
-  shipping_address: z.string().trim().min(5, "العنوان التفصيلي مطلوب").max(500),
-  city: z.string().trim().min(2, "اسم المدينة مطلوب").max(100),
-  notes: z.string().trim().max(500).optional(),
-  items: z.array(itemSchema).min(1, "السلة فارغة").max(50),
+  full_name: z
+    .string()
+    .transform(sanitizeInput)
+    .pipe(z.string().min(2, "الاسم الكامل مطلوب (حرفين على الأقل)").max(100, "الاسم طويل جداً")),
+  phone: z
+    .string()
+    .transform(sanitizeInput)
+    .pipe(z.string().min(6, "رقم الهاتف غير صالح").max(25, "رقم الهاتف طويل جداً")),
+  shipping_address: z
+    .string()
+    .transform(sanitizeInput)
+    .pipe(
+      z.string().min(5, "العنوان التفصيلي مطلوب (5 أحرف على الأقل)").max(500, "العنوان طويل جداً"),
+    ),
+  city: z.string().transform(sanitizeInput).pipe(z.string().min(2, "اسم المدينة مطلوب").max(100)),
+  notes: z
+    .string()
+    .transform(sanitizeInput)
+    .pipe(z.string().max(500, "الملاحظات طويلة جداً"))
+    .optional()
+    .nullable(),
+  items: z.array(itemSchema).min(1, "السلة فارغة").max(50, "عدد المنتجات يتجاوز الحد المسموح"),
 });
 
 /**
