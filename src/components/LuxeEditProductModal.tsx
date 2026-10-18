@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/types/database.types";
 import type { Product } from "@/lib/mock-products";
 import { ProductQualityAdvisor } from "@/components/ProductQualityAdvisor";
 import { resolveProductImage, extractProductGallery } from "@/lib/product-images";

@@ -7,31 +7,47 @@ import {
   Sparkles,
   ArrowUpDown,
   Filter,
+  BadgeCheck,
+  HeartHandshake,
 } from "lucide-react";
-import { Review, getProductReviews } from "@/lib/reviews";
+import { Review, getProductReviews, getLocalizedReview, INITIAL_REVIEWS } from "@/lib/reviews";
 import { AddReviewDialog } from "@/components/AddReviewDialog";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface ProductReviewsSectionProps {
-  productId: string;
-  productName: string;
+  productId?: string;
+  productName?: string;
+  title?: string;
+  subtitle?: string;
 }
 
-export function ProductReviewsSection({ productId, productName }: ProductReviewsSectionProps) {
+export function ProductReviewsSection({
+  productId,
+  productName,
+  title,
+  subtitle,
+}: ProductReviewsSectionProps) {
   const { t, language } = useLanguage();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
+  const [loading, setLoading] = useState(false);
   const [filterRating, setFilterRating] = useState<number | null>(null);
+  const [filterSkinType, setFilterSkinType] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"newest" | "highest">("newest");
   const [helpfulCounts, setHelpfulCounts] = useState<Record<string, number>>({});
   const [votedHelpful, setVotedHelpful] = useState<Record<string, boolean>>({});
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   const loadReviews = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getProductReviews(productId, productName);
-      setReviews(data);
+      if (productId) {
+        const data = await getProductReviews(productId, productName);
+        setReviews(data);
+      } else {
+        const data = await getProductReviews();
+        setReviews(data);
+      }
     } catch (err) {
       console.error("Failed to load product reviews:", err);
     } finally {
@@ -42,16 +58,22 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
   useEffect(() => {
     loadReviews();
 
-    const handleNewReview = (e: Event) => {
-      const customEvent = e as CustomEvent<Review>;
-      if (customEvent.detail?.product_id === productId) {
-        setReviews((prev) => [customEvent.detail, ...prev]);
-      }
+    const handleReviewsChanged = () => {
+      loadReviews();
     };
 
-    window.addEventListener("so_beauty_review_added", handleNewReview);
-    return () => window.removeEventListener("so_beauty_review_added", handleNewReview);
-  }, [loadReviews, productId]);
+    window.addEventListener("so_beauty_review_added", handleReviewsChanged);
+    window.addEventListener("so_beauty_review_updated", handleReviewsChanged);
+    window.addEventListener("so_beauty_review_deleted", handleReviewsChanged);
+    window.addEventListener("so_beauty_seed_reviews_toggled", handleReviewsChanged);
+
+    return () => {
+      window.removeEventListener("so_beauty_review_added", handleReviewsChanged);
+      window.removeEventListener("so_beauty_review_updated", handleReviewsChanged);
+      window.removeEventListener("so_beauty_review_deleted", handleReviewsChanged);
+      window.removeEventListener("so_beauty_seed_reviews_toggled", handleReviewsChanged);
+    };
+  }, [loadReviews]);
 
   // Calculations for summary stats
   const totalCount = reviews.length;
@@ -69,6 +91,7 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
   // Filter & Sort
   const displayedReviews = reviews
     .filter((r) => (filterRating ? Math.round(r.rating) === filterRating : true))
+    .filter((r) => (filterSkinType ? r.skin_type === filterSkinType : true))
     .sort((a, b) => {
       if (sortBy === "highest") {
         return b.rating - a.rating;
@@ -95,9 +118,14 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
             <span>{t("reviews.tag")}</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            {t("reviews.title").replace("{product}", productName)}
+            {title ||
+              (productName
+                ? t("reviews.title").replace("{product}", productName)
+                : t("home.reviewsTitle"))}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">{t("reviews.subtitle")}</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            {subtitle || (productName ? t("reviews.subtitle") : t("home.reviewsSubtitle"))}
+          </p>
         </div>
 
         <AddReviewDialog
@@ -113,20 +141,21 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
         />
       </div>
 
-      {/* Ratings Overview Card */}
-      <div className="bg-card border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-          {/* Big Score Block */}
-          <div className="md:col-span-4 text-center md:border-e md:border-slate-200/80 md:pe-6">
-            <div className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight mb-2">
+      {/* Compact Luxe Rating Summary Strip (Ultra-sleek, zero wasted space) */}
+      <div className="bg-muted/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-background px-3 py-1 rounded-xl border border-border/60 shadow-2xs">
+            <span
+              suppressHydrationWarning
+              className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100"
+            >
               {averageRating}
-              <span className="text-lg font-normal text-slate-400"> / 5</span>
-            </div>
-            <div className="flex items-center justify-center gap-1 mb-2">
+            </span>
+            <div className="flex items-center gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
-                  className={`w-5 h-5 ${
+                  className={`w-3.5 h-3.5 ${
                     star <= Math.round(Number(averageRating))
                       ? "fill-amber-400 text-amber-400"
                       : "text-slate-200 fill-slate-100"
@@ -134,40 +163,18 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
                 />
               ))}
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              {t("reviews.basedOn").replace("{count}", String(totalCount))}
-            </p>
           </div>
+          <span
+            suppressHydrationWarning
+            className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300"
+          >
+            {t("reviews.basedOn").replace("{count}", String(totalCount))}
+          </span>
+        </div>
 
-          {/* Breakdown Progress Bars */}
-          <div className="md:col-span-8 space-y-2">
-            {starBreakdown.map((item) => (
-              <button
-                key={item.stars}
-                type="button"
-                onClick={() => setFilterRating(filterRating === item.stars ? null : item.stars)}
-                className={`w-full flex items-center gap-3 text-xs group p-1 rounded-lg transition-colors cursor-pointer ${
-                  filterRating === item.stars ? "bg-primary/5 font-bold" : "hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-1 w-14 shrink-0 text-slate-700">
-                  <span>{item.stars}</span>
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                </div>
-
-                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                    style={{ width: `${item.percentage}%` }}
-                  />
-                </div>
-
-                <div className="w-12 text-end text-slate-400 group-hover:text-slate-700 transition-colors">
-                  {item.percentage}%
-                </div>
-              </button>
-            ))}
-          </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 text-xs font-semibold">
+          <HeartHandshake className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>{t("reviews.recommendationRate")}</span>
         </div>
       </div>
 
@@ -226,118 +233,158 @@ export function ProductReviewsSection({ productId, productName }: ProductReviews
         </div>
       </div>
 
-      {/* Reviews List */}
-      {loading ? (
-        <div className="py-12 text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <p className="text-xs text-slate-400">{t("reviews.loadingReviews")}</p>
-        </div>
-      ) : displayedReviews.length === 0 ? (
+      {/* Reviews List (Immediate Zero-Latency Rendering) */}
+      {displayedReviews.length === 0 && !loading ? (
         <div className="bg-muted/30 border border-slate-200/80 rounded-3xl p-8 text-center max-w-md mx-auto my-6">
           <MessageSquareHeart className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-800 mb-1">{t("reviews.noReviews")}</h3>
           <p className="text-xs text-slate-500 mb-4">
-            {t("reviews.firstToReview").replace("{product}", productName)}
+            {t("reviews.firstToReview").replace("{product}", productName || "")}
           </p>
           <Button
             variant="outline"
-            onClick={() => setFilterRating(null)}
+            onClick={() => {
+              setFilterRating(null);
+              setFilterSkinType(null);
+            }}
             className="h-9 px-4 rounded-xl text-xs cursor-pointer"
           >
             {t("reviews.resetFilter")}
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {displayedReviews.map((rev) => (
-            <div
-              key={rev.id}
-              className="bg-card border border-slate-200/80 rounded-2xl sm:rounded-3xl p-5 shadow-xs flex flex-col justify-between transition-all hover:shadow-sm"
-            >
-              <div>
-                {/* Reviewer Header */}
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
-                      {rev.name.slice(0, 1)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900">
-                          {rev.name}
-                        </span>
-                        {rev.is_verified && (
-                          <span
-                            className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold border border-emerald-200"
-                            title="Verified buyer"
-                          >
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>{t("reviews.verifiedBuyer")}</span>
-                          </span>
-                        )}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(showAllReviews ? displayedReviews : displayedReviews.slice(0, 2)).map((rev) => {
+              const {
+                name: reviewerName,
+                body: reviewerBody,
+                skinType: reviewerSkinType,
+              } = getLocalizedReview(rev, language);
+
+              return (
+                <div
+                  key={rev.id}
+                  className="bg-card border border-slate-200/80 rounded-2xl sm:rounded-3xl p-5 shadow-xs flex flex-col justify-between transition-all hover:shadow-sm"
+                >
+                  <div>
+                    {/* Reviewer Header */}
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
+                          {reviewerName.slice(0, 1)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs sm:text-sm font-bold text-slate-900">
+                              {reviewerName}
+                            </span>
+                            {rev.is_verified && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold border border-emerald-200"
+                                title="Verified buyer"
+                              >
+                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{t("reviews.verifiedBuyer")}</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                            <span suppressHydrationWarning>
+                              {new Date(rev.created_at).toLocaleDateString(
+                                language === "ar" ? "ar-EG" : "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                },
+                              )}
+                            </span>
+                            {reviewerSkinType && (
+                              <>
+                                <span>•</span>
+                                <span className="text-primary/90 font-medium bg-primary/5 px-2 py-0.5 rounded-md">
+                                  {reviewerSkinType}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-[11px] text-slate-400">
-                        {new Date(rev.created_at).toLocaleDateString(
-                          language === "ar" ? "ar-EG" : "en-US",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          },
-                        )}
-                      </span>
+
+                      {/* Stars */}
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${
+                              s <= rev.rating
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-200 fill-slate-100"
+                            }`}
+                          />
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Review Body */}
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+                      "{reviewerBody}"
+                    </p>
                   </div>
 
-                  {/* Stars */}
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={`w-3.5 h-3.5 ${
-                          s <= rev.rating
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-slate-200 fill-slate-100"
-                        }`}
-                      />
-                    ))}
+                  {/* Helpful & Recommendation footer */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-700">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span>{t("reviews.recommendTag")}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleHelpful(rev.id)}
+                      disabled={votedHelpful[rev.id]}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] transition-colors cursor-pointer ${
+                        votedHelpful[rev.id]
+                          ? "bg-emerald-50 text-emerald-700 font-semibold cursor-default"
+                          : "hover:bg-slate-100 text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <ThumbsUp className="w-3 h-3" />
+                      <span>
+                        {votedHelpful[rev.id]
+                          ? t("reviews.helpful")
+                          : helpfulCounts[rev.id]
+                            ? `${t("reviews.helpful")} (${helpfulCounts[rev.id]})`
+                            : t("reviews.helpful")}
+                      </span>
+                    </button>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Review Body */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
-                  "{rev.body}"
-                </p>
-              </div>
-
-              {/* Helpful footer */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span className="text-[11px]">
-                  {t("reviews.trustedExperience").replace("{product}", productName)}
+          {displayedReviews.length > 2 && (
+            <div className="mt-5 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllReviews((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-primary hover:bg-primary/5 transition-colors cursor-pointer border border-primary/25"
+              >
+                <span>
+                  {showAllReviews
+                    ? language === "ar"
+                      ? "عرض أقل ▲"
+                      : "Show less ▲"
+                    : language === "ar"
+                      ? `عرض جميع الآراء (${displayedReviews.length}) ▼`
+                      : `View all ${displayedReviews.length} reviews ▼`}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleHelpful(rev.id)}
-                  disabled={votedHelpful[rev.id]}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] transition-colors cursor-pointer ${
-                    votedHelpful[rev.id]
-                      ? "bg-emerald-50 text-emerald-700 font-semibold cursor-default"
-                      : "hover:bg-slate-100 text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <ThumbsUp className="w-3 h-3" />
-                  <span>
-                    {votedHelpful[rev.id]
-                      ? t("reviews.helpful")
-                      : helpfulCounts[rev.id]
-                        ? `${t("reviews.helpful")} (${helpfulCounts[rev.id]})`
-                        : t("reviews.helpful")}
-                  </span>
-                </button>
-              </div>
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </section>
   );

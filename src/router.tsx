@@ -17,10 +17,7 @@ export const getRouter = () => {
   const router = createRouter({
     routeTree,
     context: { queryClient },
-    scrollRestoration: true,
-    defaultPreload: "intent", // Instantly prefetch on hover or touchstart
-    defaultPreloadDelay: 50,
-    defaultPreloadStaleTime: 1000 * 60 * 5,
+    defaultPreload: false,
   });
 
   return router;

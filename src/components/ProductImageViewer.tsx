@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ZoomIn, ZoomOut, RotateCcw, Maximize2, X } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface ProductImageViewerProps {
@@ -9,190 +9,246 @@ interface ProductImageViewerProps {
 }
 
 export function ProductImageViewer({ src, alt, isOutOfStock = false }: ProductImageViewerProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isAr = language === "ar";
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [isPinching, setIsPinching] = useState(false);
 
-  // Gesture tracking refs
-  const initialDistanceRef = useRef<number | null>(null);
-  const initialScaleRef = useRef<number>(1);
-  const startPanRef = useRef<{ x: number; y: number } | null>(null);
-  const lastTouchTimeRef = useRef<number>(0);
+  // Lightbox Modal state
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [modalScale, setModalScale] = useState(1);
+  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
 
-  // Reset zoom state
-  const resetZoom = useCallback(() => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-    setIsZoomed(false);
+  // Touch gesture tracking for pinch-to-zoom and pan
+  const touchStartDistRef = useRef<number | null>(null);
+  const touchStartScaleRef = useRef<number>(1);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const initialModalPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastTapRef = useRef<number>(0);
+
+  const resetModalZoom = useCallback(() => {
+    setModalScale(1);
+    setModalPos({ x: 0, y: 0 });
   }, []);
 
-  // Sync isZoomed with scale
+  // Handle escape key to close lightbox
   useEffect(() => {
-    setIsZoomed(scale > 1.05);
-  }, [scale]);
-
-  // Touch handlers attached with passive: false to prevent background scrolling when zooming
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        // Multi-touch pinch start
-        e.preventDefault();
-        setIsPinching(true);
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY,
-        );
-        initialDistanceRef.current = dist;
-        initialScaleRef.current = scale;
-      } else if (e.touches.length === 1) {
-        // Double tap detection
-        const now = Date.now();
-        const timeDiff = now - lastTouchTimeRef.current;
-        lastTouchTimeRef.current = now;
-
-        if (timeDiff < 300) {
-          e.preventDefault();
-          // Toggle zoom on double tap
-          if (scale > 1.2) {
-            resetZoom();
-          } else {
-            setScale(2.5);
-            setPosition({ x: 0, y: 0 });
-          }
-          return;
-        }
-
-        // Single touch pan if already zoomed
-        if (scale > 1) {
-          startPanRef.current = {
-            x: e.touches[0].clientX - position.x,
-            y: e.touches[0].clientY - position.y,
-          };
-        }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isLightboxOpen) {
+        setIsLightboxOpen(false);
+        resetModalZoom();
       }
     };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && initialDistanceRef.current !== null) {
-        // Pinching
-        e.preventDefault();
-        const currentDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY,
-        );
-        const factor = currentDist / initialDistanceRef.current;
-        const newScale = Math.min(Math.max(initialScaleRef.current * factor, 1), 3.5);
-        setScale(newScale);
-      } else if (e.touches.length === 1 && scale > 1 && startPanRef.current) {
-        // Panning when zoomed
-        e.preventDefault();
-        const maxPan = (scale - 1) * 120;
-        const newX = e.touches[0].clientX - startPanRef.current.x;
-        const newY = e.touches[0].clientY - startPanRef.current.y;
-        setPosition({
-          x: Math.min(Math.max(newX, -maxPan), maxPan),
-          y: Math.min(Math.max(newY, -maxPan), maxPan),
-        });
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        initialDistanceRef.current = null;
-        setIsPinching(false);
-      }
-      if (e.touches.length === 0) {
-        startPanRef.current = null;
-        if (scale < 1.1) {
-          resetZoom();
-        }
-      }
-    };
-
-    container.addEventListener("touchstart", handleTouchStart, { passive: false });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
-    container.addEventListener("touchend", handleTouchEnd);
-    container.addEventListener("touchcancel", handleTouchEnd);
-
+    if (isLightboxOpen) {
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+    } else {
+      document.body.style.overflow = "";
+    }
     return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
-      container.removeEventListener("touchcancel", handleTouchEnd);
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [scale, position, resetZoom]);
+  }, [isLightboxOpen, resetModalZoom]);
+
+  const openLightbox = () => {
+    resetModalZoom();
+    setIsLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setIsLightboxOpen(false);
+    resetModalZoom();
+  };
+
+  // Pinch-to-zoom & Touch Pan Handlers inside Lightbox
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      // Two fingers: Pinch-to-zoom started
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      touchStartDistRef.current = dist;
+      touchStartScaleRef.current = modalScale;
+    } else if (e.touches.length === 1) {
+      // Single finger: Drag/Pan or Double-tap
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        // Double-tap detected: toggle zoom
+        e.preventDefault();
+        setModalScale((current) => (current > 1.2 ? 1 : 2.5));
+        setModalPos({ x: 0, y: 0 });
+        lastTapRef.current = 0;
+        return;
+      }
+      lastTapRef.current = now;
+
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      initialModalPosRef.current = { ...modalPos };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && touchStartDistRef.current !== null) {
+      // Handle Pinch Zoom
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      const ratio = dist / touchStartDistRef.current;
+      const newScale = Math.min(Math.max(touchStartScaleRef.current * ratio, 1), 4);
+      setModalScale(newScale);
+    } else if (e.touches.length === 1 && modalScale > 1 && touchStartPosRef.current !== null) {
+      // Handle Pan when zoomed in
+      e.preventDefault();
+      const deltaX = e.touches[0].clientX - touchStartPosRef.current.x;
+      const deltaY = e.touches[0].clientY - touchStartPosRef.current.y;
+      setModalPos({
+        x: initialModalPosRef.current.x + deltaX,
+        y: initialModalPosRef.current.y + deltaY,
+      });
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length < 2) {
+      touchStartDistRef.current = null;
+    }
+    if (e.touches.length === 0) {
+      touchStartPosRef.current = null;
+      // Snap back if scale ended up below 1
+      if (modalScale <= 1.05) {
+        setModalScale(1);
+        setModalPos({ x: 0, y: 0 });
+      }
+    }
+  };
 
   return (
     <div className="relative w-full select-none">
-      {/* Interactive Touch Stage */}
-      <div
-        ref={containerRef}
-        className="relative aspect-square w-full bg-slate-50 dark:bg-slate-900/40 rounded-3xl overflow-hidden border border-border/80 shadow-sm p-4 sm:p-6 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing"
-        aria-label={
-          isAr
-            ? "صورة المنتج، يمكنك التكبير باللمس بإصبعيك أو النقر المزدوج"
-            : "Product image, zoom in with pinch or double tap"
-        }
-      >
+      {/* 
+        Standard eCommerce Natural Stage:
+        - Pure white clean studio background.
+        - Full natural size display with zero edge clipping and minimal boundary padding.
+        - Clicking the image does NOT trigger fullscreen; fullscreen is dedicated to the expand button.
+        - Uses 'touch-pan-y' to guarantee ZERO scroll hijacking on mobile.
+      */}
+      <div className="relative aspect-square w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-center group touch-pan-y">
         <img
           src={src}
           alt={alt}
-          style={{
-            transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${scale})`,
-            transition: isPinching ? "none" : "transform 0.25s cubic-bezier(0.2, 0, 0, 1)",
-            transformOrigin: "center center",
-            willChange: "transform",
-          }}
-          className={`w-full h-full max-h-[440px] object-contain rounded-2xl pointer-events-none ${
+          className={`w-full h-full object-contain p-1.5 sm:p-2 transition-transform duration-300 group-hover:scale-[1.01] ${
             isOutOfStock ? "grayscale opacity-75" : ""
           }`}
           loading="lazy"
         />
+
+        {/* Luxe Icon-Only Expand Trigger (Dedicated Fullscreen Activation) */}
+        <button
+          type="button"
+          onClick={openLightbox}
+          className="absolute bottom-3 end-3 z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white flex items-center justify-center shadow-md backdrop-blur-md transition-all group-hover:scale-110 cursor-pointer border border-white/20 active:scale-95"
+          aria-label={t("reviews.fullscreenView")}
+          title={t("reviews.fullscreenView")}
+        >
+          <Maximize2 className="w-4 h-4 text-white" />
+        </button>
       </div>
 
-      {/* Manual Desktop / Tablet Zoom Buttons */}
-      <div className="flex items-center justify-end gap-1.5 mt-2 px-1">
-        <button
-          type="button"
-          onClick={() => setScale((prev) => Math.min(prev + 0.5, 3.5))}
-          className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1"
-          title={isAr ? "تكبير" : "Zoom In"}
-          aria-label={isAr ? "تكبير صورة المنتج" : "Zoom in product image"}
+      {/* 
+        Pristine High-Fidelity Fullscreen Lightbox Modal with Pinch-To-Zoom Touch Gestures
+      */}
+      {isLightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in-0 duration-200 touch-none select-none"
+          onClick={closeLightbox}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          <ZoomIn className="w-3.5 h-3.5" />
-          <span className="text-[10px] hidden sm:inline">{isAr ? "تكبير" : "Zoom In"}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setScale((prev) => Math.max(prev - 0.5, 1))}
-          disabled={scale <= 1}
-          className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-          title={isAr ? "تصغير" : "Zoom Out"}
-          aria-label={isAr ? "تصغير صورة المنتج" : "Zoom out product image"}
-        >
-          <ZoomOut className="w-3.5 h-3.5" />
-          <span className="text-[10px] hidden sm:inline">{isAr ? "تصغير" : "Zoom Out"}</span>
-        </button>
-        {isZoomed && (
-          <button
-            type="button"
-            onClick={resetZoom}
-            className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-xs flex items-center gap-1"
-            title={isAr ? "إعادة تعيين" : "Reset"}
-            aria-label={isAr ? "إعادة تعيين حجم الصورة" : "Reset image zoom"}
+          {/* Top Control Bar with Clear Prominent Exit Button and Clean Layout */}
+          <div
+            className="absolute top-4 inset-x-3 sm:inset-x-6 z-60 flex items-center justify-between gap-3 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="text-[10px] hidden sm:inline">{isAr ? "إعادة ضبط" : "Reset"}</span>
-          </button>
-        )}
-      </div>
+            {/* Prominent High-Contrast Exit Button */}
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="inline-flex items-center gap-2 h-11 px-4 rounded-full bg-white/20 hover:bg-white/30 text-white font-semibold text-xs sm:text-sm backdrop-blur-md border border-white/25 transition-all cursor-pointer active:scale-95 shadow-md shrink-0"
+              title={t("reviews.closeFullscreen")}
+              aria-label={t("reviews.closeFullscreen")}
+            >
+              <X className="w-5 h-5 text-white" />
+              <span>{isAr ? "خروج" : "Exit"}</span>
+            </button>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/15">
+              {modalScale > 1 && (
+                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30 me-1">
+                  {Math.round(modalScale * 100)}%
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setModalScale((s) => Math.min(s + 0.5, 4))}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title={isAr ? "تكبير" : "Zoom In"}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalScale((s) => {
+                    const next = Math.max(s - 0.5, 1);
+                    if (next === 1) setModalPos({ x: 0, y: 0 });
+                    return next;
+                  });
+                }}
+                disabled={modalScale <= 1}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                title={isAr ? "تصغير" : "Zoom Out"}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              {modalScale > 1 && (
+                <button
+                  type="button"
+                  onClick={resetModalZoom}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title={isAr ? "إعادة ضبط" : "Reset"}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Modal Image Viewport */}
+          <div
+            className="w-full h-full max-w-5xl max-h-[88vh] p-2 sm:p-4 flex items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={src}
+              alt={alt}
+              style={{
+                transform: `translate3d(${modalPos.x}px, ${modalPos.y}px, 0) scale(${modalScale})`,
+                transition:
+                  touchStartDistRef.current !== null || touchStartPosRef.current !== null
+                    ? "none"
+                    : "transform 0.2s cubic-bezier(0.2, 0, 0, 1)",
+                transformOrigin: "center center",
+                maxHeight: "88vh",
+              }}
+              className="object-contain max-w-full select-none cursor-grab active:cursor-grabbing"
+              draggable={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

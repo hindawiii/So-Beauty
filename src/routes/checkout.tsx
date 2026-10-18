@@ -8,7 +8,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { getLocalizedProductName } from "@/lib/product-localization";
 import { createOrder, getMyProfile } from "@/lib/orders.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import { REGIONAL_CITIES, getShippingFee, getDeliveryTimeEstimate } from "@/lib/
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { WhatsAppEmblemIcon } from "@/components/icons/WhatsAppOrganicIcon";
 import { formatOrderWhatsAppSummary } from "@/lib/whatsapp";
+import { PaymentWalletsBadges } from "@/components/PaymentWalletsBadges";
 import {
   CheckCircle2,
   ShoppingBag,
@@ -46,6 +47,7 @@ type CompletedOrderInfo = {
   city: string;
   shippingAddress: string;
   notes?: string;
+  paymentMethod?: string;
   items: { id: string; name: string; quantity: number; price: number }[];
   isGuest: boolean;
 };
@@ -71,6 +73,9 @@ function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
   const [completedOrder, setCompletedOrder] = useState<CompletedOrderInfo | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bankak">("cod");
+  const [bankakRef, setBankakRef] = useState("");
+  const [copiedBankak, setCopiedBankak] = useState(false);
 
   // Initialize saved city from localStorage
   useEffect(() => {
@@ -89,14 +94,14 @@ function CheckoutPage() {
     currency,
   );
   const finalTotal = total + shippingFee;
-  const deliveryEstimate = getDeliveryTimeEstimate(currentCity, currency);
+  const deliveryEstimate = getDeliveryTimeEstimate(currentCity, currency, language);
 
   const { primary: finalTotalPrimary, secondary: finalTotalSecondary } = formatBoth(finalTotal);
 
   // Check auth state and load user profile if authenticated
   useEffect(() => {
     let isMounted = true;
-    supabase.auth.getUser().then(({ data }) => {
+    authClient.auth.getUser().then(({ data }) => {
       if (!isMounted) return;
       if (data?.user) {
         setCurrentUser({ id: data.user.id, email: data.user.email });
@@ -138,13 +143,18 @@ function CheckoutPage() {
 
     try {
       const finalCity = form.city.trim() || currentCity;
+      const paymentNotes =
+        paymentMethod === "bankak"
+          ? `[طريقة الدفع: محفظة بنكك - إشعار رقم: ${bankakRef.trim() || "قيد التحويل"}] ${form.notes || ""}`.trim()
+          : form.notes;
+
       const res = await submit({
         data: {
           full_name: form.full_name,
           phone: form.phone,
           city: finalCity,
           shipping_address: form.shipping_address,
-          notes: form.notes ? form.notes : undefined,
+          notes: paymentNotes ? paymentNotes : undefined,
           items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
         },
       });
@@ -160,7 +170,13 @@ function CheckoutPage() {
           phone: form.phone,
           city: finalCity,
           shippingAddress: form.shipping_address,
-          notes: form.notes ? form.notes : undefined,
+          notes: paymentNotes ? paymentNotes : undefined,
+          paymentMethod:
+            paymentMethod === "bankak"
+              ? language === "ar"
+                ? "محفظة بنكك (بنك الخرطوم)"
+                : "Bankak Wallet (BOK)"
+              : t("checkout.cashOnDelivery"),
           items: orderItemsSnapshot,
           isGuest: res.isGuest,
         };
@@ -184,7 +200,13 @@ function CheckoutPage() {
         phone: form.phone,
         city: finalCity,
         shippingAddress: form.shipping_address,
-        notes: form.notes ? form.notes : undefined,
+        notes: paymentNotes ? paymentNotes : undefined,
+        paymentMethod:
+          paymentMethod === "bankak"
+            ? language === "ar"
+              ? "محفظة بنكك (بنك الخرطوم)"
+              : "Bankak Wallet (BOK)"
+            : t("checkout.cashOnDelivery"),
         items: orderItemsSnapshot,
         isGuest: res.isGuest,
       });
@@ -277,7 +299,9 @@ function CheckoutPage() {
               )}
               <div className="flex justify-between font-medium">
                 <span className="text-muted-foreground">{t("checkout.paymentMethod")}</span>
-                <span className="text-primary font-semibold">{t("checkout.cashOnDelivery")}</span>
+                <span className="text-primary font-semibold">
+                  {completedOrder.paymentMethod || t("checkout.cashOnDelivery")}
+                </span>
               </div>
               <div className="flex justify-between font-bold border-t border-border/60 pt-2 text-base">
                 <span>{t("checkout.finalTotal")}</span>
@@ -516,7 +540,7 @@ function CheckoutPage() {
                   >
                     {activeCities.map((c) => (
                       <option key={c.name} value={c.name}>
-                        {c.name}{" "}
+                        {language === "en" && c.name_en ? c.name_en : c.name}{" "}
                         {shippingFee === 0
                           ? t("checkout.freeShippingTag")
                           : `(${formatPrice(c.rate)})`}
@@ -566,6 +590,154 @@ function CheckoutPage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="resize-none text-start min-h-[64px]"
                 />
+              </div>
+            </div>
+
+            {/* Payment Method Selection Card */}
+            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-sm space-y-4">
+              <h2 className="text-lg font-semibold border-b border-border/60 pb-3 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  {language === "ar" ? "طريقة الدفع" : "Payment Method"}
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  {language === "ar" ? "سداد مشفر وآمن" : "Secure Payment"}
+                </span>
+              </h2>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                {/* 1. Cash on Delivery */}
+                <div
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    paymentMethod === "cod"
+                      ? "border-primary bg-primary/5 shadow-2xs"
+                      : "border-border/80 hover:border-border"
+                  }`}
+                >
+                  <div className="mt-0.5 w-4 h-4 rounded-full border-2 border-primary flex items-center justify-center shrink-0">
+                    {paymentMethod === "cod" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm text-foreground">
+                      {language === "ar" ? "الدفع عند الاستلام (COD)" : "Cash on Delivery"}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {language === "ar"
+                        ? "سداد قيمة الطلب نقداً عند وصول المندوب لبابك"
+                        : "Pay cash upon delivery at your doorstep"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Bankak Sudan & Local Wallets */}
+                <div
+                  onClick={() => setPaymentMethod("bankak")}
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                    paymentMethod === "bankak"
+                      ? "border-emerald-600 bg-emerald-500/5 shadow-2xs"
+                      : "border-border/80 hover:border-border"
+                  }`}
+                >
+                  <div className="mt-0.5 w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center shrink-0">
+                    {paymentMethod === "bankak" && (
+                      <div className="w-2 h-2 rounded-full bg-emerald-600" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <span>
+                        {language === "ar" ? "محفظة بنكك (السودان)" : "Bankak Wallet (Sudan)"}
+                      </span>
+                      <span className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">
+                        بنك الخرطوم
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {language === "ar"
+                        ? "تحويل فوري عبر تطبيق بنكك وإرفاق رقم الإشعار"
+                        : "Instant transfer via Bankak app with reference number"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bankak Details Box when Selected */}
+              {paymentMethod === "bankak" && (
+                <div className="mt-3 p-4 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-500/30 text-start space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                        {language === "ar" ? "حساب بنكك المعتمد للمتجر:" : "Store Bankak Account:"}
+                      </div>
+                      <div className="font-mono text-base font-bold text-emerald-950 dark:text-emerald-100 mt-0.5">
+                        2984510
+                      </div>
+                      <div className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                        {language === "ar" ? "باسم: متجر سو بيوتي" : "Name: So Beauty Store"}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText("2984510");
+                        setCopiedBankak(true);
+                        setTimeout(() => setCopiedBankak(false), 2000);
+                      }}
+                      className="gap-1.5 text-xs h-8 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                    >
+                      {copiedBankak ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{language === "ar" ? "تم النسخ!" : "Copied!"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{language === "ar" ? "نسخ الرقم" : "Copy"}</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-emerald-500/20">
+                    <Label
+                      htmlFor="bankak_ref"
+                      className="text-xs font-semibold text-emerald-900 dark:text-emerald-200"
+                    >
+                      {language === "ar"
+                        ? "رقم العملية / الإشعار من تطبيق بنكك *"
+                        : "Bankak Transaction / Reference Number *"}
+                    </Label>
+                    <Input
+                      id="bankak_ref"
+                      placeholder={language === "ar" ? "مثال: 849201948" : "e.g. 849201948"}
+                      value={bankakRef}
+                      onChange={(e) => setBankakRef(e.target.value)}
+                      required={paymentMethod === "bankak"}
+                      className="h-10 text-start font-mono bg-white dark:bg-slate-900 border-emerald-500/40"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {language === "ar"
+                        ? "يرجى تحويل المبلغ الإجمالي وإدخال رقم الإشعار للتحقق الفوري من الطلب."
+                        : "Please transfer the total amount and enter the reference number for confirmation."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Trust & Accepted Networks Strip */}
+              <div className="mt-4 p-3 rounded-xl bg-muted/40 border border-slate-200/60 dark:border-slate-800 text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                <span className="text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  {language === "ar"
+                    ? "معاملات آمنة ومشفرة بالكامل | الدفع بعد الفحص والاستلام"
+                    : "Encrypted transactions | Inspect before paying"}
+                </span>
+                <PaymentWalletsBadges variant="compact" />
               </div>
             </div>
           </div>

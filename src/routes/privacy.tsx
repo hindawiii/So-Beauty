@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { ShieldCheck, Lock, Eye, FileText, Truck, Phone, Mail, ChevronRight } from "lucide-react";
@@ -27,15 +28,13 @@ function PrivacyPolicyPage() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <SiteHeader />
 
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-4xl">
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
-          <Link to="/" className="hover:text-primary transition-colors">
-            {t("nav.home")}
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180 rotate-0" />
-          <span className="text-foreground font-medium">{t("footer.privacy")}</span>
-        </div>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 max-w-4xl">
+        {/* Smart Back Navigation Bar */}
+        <SmartBackBar
+          label={language === "ar" ? "العودة للمتجر" : "Back to Store"}
+          badge={t("footer.privacy")}
+          fallbackTo="/"
+        />
 
         {/* Header Title Section */}
         <div className="mb-10 text-center sm:text-start border-b border-border pb-8">

@@ -1,12 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { createClient } from "@supabase/supabase-js";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "./auth-middleware";
 import { requireAdminGuard } from "./admin-auth";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/types/database.types";
 import { MOCK_PRODUCTS, atomicDecrementMockStock } from "./mock-products";
 import { getShippingFee } from "./shipping";
 import { z } from "zod";
+
+// Autonomous local profile store
+const LOCAL_PROFILES = new Map<
+  string,
+  {
+    id: string;
+    full_name: string;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+  }
+>();
 
 export type SavedOrder = {
   id: string;
@@ -124,16 +135,7 @@ export const MOCK_ORDERS: SavedOrder[] = [
 ];
 
 function getSupabaseClient() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  try {
-    return createClient<Database>(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-    });
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 // Helper to sanitize text input from potential script injection or malformed characters
@@ -180,7 +182,7 @@ const createOrderSchema = z.object({
  * Performs atomic stock validation and decrement.
  */
 export const createOrder = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => createOrderSchema.parse(data))
+  .validator((data: unknown) => createOrderSchema.parse(data))
   .handler(async ({ data }) => {
     // 1. Resolve authentication if available (optional for Guest Checkout)
     let authenticatedUserId: string | null = null;
@@ -367,29 +369,23 @@ export const createOrder = createServerFn({ method: "POST" })
   });
 
 export const listMyOrders = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("orders")
-      .select("id, total, status, created_at, order_items(id, product_name, quantity, unit_price)")
-      .order("created_at", { ascending: false });
-    if (!error && data && data.length > 0) {
-      return data;
-    }
-    // Fallback to in-memory orders matching user
     return MOCK_ORDERS.filter((o) => o.user_id === context.userId);
   });
 
 export const getMyProfile = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data;
+    return (
+      LOCAL_PROFILES.get(context.userId) || {
+        id: context.userId,
+        full_name: "مستخدم المتجر",
+        phone: null,
+        address: null,
+        city: null,
+      }
+    );
   });
 
 const profileSchema = z.object({
@@ -400,13 +396,10 @@ const profileSchema = z.object({
 });
 
 export const updateMyProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => profileSchema.parse(data))
+  .middleware([requireAuth])
+  .validator((data: unknown) => profileSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("profiles")
-      .upsert({ id: context.userId, ...data });
-    if (error) throw new Error(error.message);
+    LOCAL_PROFILES.set(context.userId, { id: context.userId, ...data });
     return { ok: true };
   });
 
@@ -415,7 +408,7 @@ const trackOrderSchema = z.object({
 });
 
 export const trackOrder = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => trackOrderSchema.parse(data))
+  .validator((data: unknown) => trackOrderSchema.parse(data))
   .handler(async ({ data }) => {
     const raw = data.query.trim();
     const cleanPhone = raw.replace(/[^0-9+]/g, "");
@@ -471,7 +464,7 @@ export const trackOrder = createServerFn({ method: "POST" })
  * Admin: List all orders with optional status or text filter
  */
 export const adminListAllOrders = createServerFn({ method: "GET" })
-  .inputValidator((data: { adminPin?: string } | undefined) => data ?? {})
+  .validator((data: { adminPin?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
     await requireAdminGuard(data?.adminPin);
 
@@ -507,7 +500,7 @@ const updateOrderStatusSchema = z.object({
  * Admin: Update status of any order (persists to DB and in-memory registry)
  */
 export const adminUpdateOrderStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => updateOrderStatusSchema.parse(data))
+  .validator((data: unknown) => updateOrderStatusSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAdminGuard(data.adminPin);
 

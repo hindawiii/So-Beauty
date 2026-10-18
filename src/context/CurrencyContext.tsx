@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export type CurrencyCode =
   | "SDG" // السودان
@@ -33,6 +34,7 @@ export interface CurrencyConfig {
   symbolEn: string;
   flag: string;
   country: string;
+  countryEn?: string;
   rateAgainstEGP: number; // How many units of this currency equal 1 EGP (Base: 1 EGP ≈ 0.0205 USD)
   decimals: number;
 }
@@ -46,6 +48,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     symbolEn: "SDG",
     flag: "🇸🇩",
     country: "السودان",
+    countryEn: "Sudan",
     rateAgainstEGP: 51.2, // 1 EGP ≈ 51.2 SDG
     decimals: 0,
   },
@@ -57,6 +60,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     symbolEn: "SAR",
     flag: "🇸🇦",
     country: "السعودية",
+    countryEn: "Saudi Arabia",
     rateAgainstEGP: 0.077, // 1 EGP ≈ 0.077 SAR
     decimals: 2,
   },
@@ -68,6 +72,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     symbolEn: "AED",
     flag: "🇦🇪",
     country: "الإمارات",
+    countryEn: "UAE",
     rateAgainstEGP: 0.075, // 1 EGP ≈ 0.075 AED
     decimals: 2,
   },
@@ -79,6 +84,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     symbolEn: "EGP",
     flag: "🇪🇬",
     country: "مصر",
+    countryEn: "Egypt",
     rateAgainstEGP: 1,
     decimals: 0,
   },
@@ -288,6 +294,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     symbolEn: "$",
     flag: "🇺🇸",
     country: "دولي",
+    countryEn: "Global (USD)",
     rateAgainstEGP: 0.0205, // 1 EGP ≈ $0.0205 (~$1 = 48.8 EGP)
     decimals: 2,
   },
@@ -462,6 +469,16 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  let currentLanguage: "ar" | "en" = "ar";
+  try {
+    const langCtx = useLanguage();
+    if (langCtx?.language) {
+      currentLanguage = langCtx.language;
+    }
+  } catch {
+    // If rendered outside LanguageProvider
+  }
+
   const currencyConfig = CURRENCIES[currency] || CURRENCIES.SAR;
 
   const convertPrice = (amountInEGP: number): number => {
@@ -470,24 +487,34 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     return Number(converted.toFixed(currencyConfig.decimals));
   };
 
-  const formatPrice = (amountInEGP: number, options?: { showCode?: boolean }): string => {
+  const formatPrice = (
+    amountInEGP: number,
+    options?: { showCode?: boolean; overrideLang?: "ar" | "en" },
+  ): string => {
+    const activeLang = options?.overrideLang || currentLanguage;
     const converted = convertPrice(amountInEGP);
-    const formattedNumber = converted.toLocaleString("ar-EG", {
+    const locale = activeLang === "en" ? "en-US" : "ar-EG";
+    const formattedNumber = converted.toLocaleString(locale, {
       minimumFractionDigits: currencyConfig.decimals,
       maximumFractionDigits: currencyConfig.decimals,
     });
 
+    const symbol = activeLang === "en" ? currencyConfig.symbolEn : currencyConfig.symbolAr;
+
     if (options?.showCode) {
-      return `${formattedNumber} ${currencyConfig.symbolAr} (${currencyConfig.code})`;
+      return `${formattedNumber} ${symbol} (${currencyConfig.code})`;
     }
-    return `${formattedNumber} ${currencyConfig.symbolAr}`;
+    return `${formattedNumber} ${symbol}`;
   };
 
   const formatBoth = (amountInEGP: number): { primary: string; secondary?: string } => {
     const primary = formatPrice(amountInEGP);
     if (currency === "USD") {
-      const egpFormatted = `${amountInEGP.toLocaleString("ar-EG")} ج.م (EGP)`;
-      return { primary, secondary: `يعادل تقريباً ${egpFormatted}` };
+      const egpLocale = currentLanguage === "en" ? "en-US" : "ar-EG";
+      const egpSymbol = currentLanguage === "en" ? "EGP" : "ج.م";
+      const egpFormatted = `${amountInEGP.toLocaleString(egpLocale)} ${egpSymbol}`;
+      const prefix = currentLanguage === "en" ? "Equivalent to approx. " : "يعادل تقريباً ";
+      return { primary, secondary: `${prefix}${egpFormatted}` };
     }
     const usdConverted = (amountInEGP * CURRENCIES.USD.rateAgainstEGP).toFixed(2);
     return { primary, secondary: `(~ $${usdConverted} USD)` };

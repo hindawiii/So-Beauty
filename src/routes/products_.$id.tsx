@@ -1,9 +1,10 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
+import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense, useState, useRef, useEffect, useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { getProduct, listProducts } from "@/lib/products.functions";
+import { getProduct, listProducts, attachMetadataToProduct } from "@/lib/products.functions";
+import { MOCK_PRODUCTS } from "@/lib/mock-products";
 import {
   resolveProductImage,
   extractProductGallery,
@@ -20,6 +21,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductImageViewer } from "@/components/ProductImageViewer";
+import { PaymentWalletsBadges } from "@/components/PaymentWalletsBadges";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -60,11 +62,21 @@ const productQuery = (id: string) =>
       if (!p) throw notFound();
       return p;
     },
+    initialData: () => {
+      const found = MOCK_PRODUCTS.find((p) => p.id === id);
+      return found ? attachMetadataToProduct(found) : undefined;
+    },
+    initialDataUpdatedAt: () => Date.now(),
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
   });
 
 const allProductsQuery = queryOptions({
   queryKey: ["products", "all"],
   queryFn: () => listProducts({ data: {} }),
+  staleTime: 1000 * 60 * 10,
+  gcTime: 1000 * 60 * 30,
+  initialData: () => MOCK_PRODUCTS,
 });
 
 function ProductNotFound() {
@@ -91,7 +103,24 @@ function ProductNotFound() {
 }
 
 export const Route = createFileRoute("/products_/$id")({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(productQuery(params.id)),
+  loader: ({ context, params }) => {
+    // 1. If product is not yet in cache, check mock products and populate synchronously (instant 0ms render)
+    const cached = context.queryClient.getQueryData(["product", params.id]);
+    if (!cached) {
+      const found = MOCK_PRODUCTS.find((p) => p.id === params.id);
+      if (found) {
+        context.queryClient.setQueryData(["product", params.id], attachMetadataToProduct(found));
+      }
+    }
+    // Also seed allProducts in cache if not present
+    const cachedAll = context.queryClient.getQueryData(["products", "all"]);
+    if (!cachedAll) {
+      context.queryClient.setQueryData(["products", "all"], MOCK_PRODUCTS);
+    }
+    // 2. Prefetch in background without blocking screen transition
+    context.queryClient.prefetchQuery(productQuery(params.id));
+    context.queryClient.prefetchQuery(allProductsQuery);
+  },
   head: () => ({ meta: [{ title: "تفاصيل ومواصفات المنتج — تسوق أونلاين" }] }),
   component: Page,
   errorComponent: ({ error }) => <div className="p-8 text-center">{error.message}</div>,
@@ -100,6 +129,22 @@ export const Route = createFileRoute("/products_/$id")({
 
 function Page() {
   const { t } = useLanguage();
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      const lastVisited = sessionStorage.getItem("so_beauty_last_page");
+      if (lastVisited && lastVisited !== window.location.pathname) {
+        router.navigate({ to: lastVisited });
+        return;
+      }
+    }
+    router.navigate({ to: "/products" });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -107,14 +152,15 @@ function Page() {
       <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-5xl">
         {/* Back Navigation Bar with Generous Breathing Space and Safe Distance */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/60">
-          <Link
-            to="/products"
+          <button
+            type="button"
+            onClick={handleBack}
             className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all duration-200 hover:shadow-xs active:scale-95 cursor-pointer shrink-0 self-start sm:self-auto"
             aria-label={t("productDetail.backToAll")}
           >
             <ArrowRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
             <span>{t("productDetail.backToAll")}</span>
-          </Link>
+          </button>
 
           {/* Breadcrumb Navigation with dedicated spacing */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 sm:pt-0">
@@ -151,7 +197,7 @@ function Page() {
 function Detail() {
   const { id } = Route.useParams();
   const { data: p } = useSuspenseQuery(productQuery(id));
-  const { data: allProducts } = useSuspenseQuery(allProductsQuery);
+  const { data: allProducts } = useQuery(allProductsQuery);
   const { add } = useCart();
   const { isInWishlist, toggle } = useWishlist();
   const { formatPrice, formatBoth } = useCurrency();
@@ -222,26 +268,28 @@ function Detail() {
     );
   };
 
-  // Related products
-  const relatedProducts = allProducts
+  // Related products (Show 3 items to fit 3-per-row grid perfectly)
+  const productList =
+    Array.isArray(allProducts) && allProducts.length > 0 ? allProducts : MOCK_PRODUCTS;
+  const relatedProducts = productList
     .filter((item) => item.id !== p.id && (p.category ? item.category === p.category : true))
-    .slice(0, 4);
+    .slice(0, 3);
 
   const finalRelated =
-    relatedProducts.length >= 4
+    relatedProducts.length >= 3
       ? relatedProducts
       : [
           ...relatedProducts,
-          ...allProducts.filter(
+          ...productList.filter(
             (item) => item.id !== p.id && !relatedProducts.some((r) => r.id === item.id),
           ),
-        ].slice(0, 4);
+        ].slice(0, 3);
 
   return (
     <div className="space-y-14">
       {/* Product Hero Grid */}
       <div className="grid md:grid-cols-2 gap-8 lg:gap-14 items-start">
-        {/* Product Visual Showcase (Gallery with Touch Pinch-to-Zoom) */}
+        {/* Multi-Angle Zoomable Stage: Clean, Minimalist & Distraction-Free */}
         <div className="space-y-4">
           <div className="relative">
             <ProductImageViewer
@@ -250,37 +298,9 @@ function Detail() {
               isOutOfStock={isOutOfStock}
             />
 
-            {/* Wishlist Button - Protected Safe Corner */}
-            <button
-              type="button"
-              onClick={handleWishlistToggle}
-              className={`absolute top-4 end-4 z-20 w-11 h-11 rounded-full flex items-center justify-center transition-all backdrop-blur-md shadow-sm cursor-pointer ${
-                isWished
-                  ? "bg-rose-500 text-white hover:bg-rose-600 scale-105"
-                  : "bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 hover:text-rose-500"
-              }`}
-              aria-label={
-                isWished ? t("productDetail.inWishlist") : t("productDetail.addToWishlist")
-              }
-            >
-              <Heart
-                className={`w-5 h-5 transition-transform active:scale-75 ${
-                  isWished ? "fill-current text-white" : ""
-                }`}
-              />
-            </button>
-
-            {/* Discount Badge - Micro Luxury Pill */}
-            {original && original > price && (
-              <span className="absolute top-4 start-4 z-20 bg-red-600 text-white text-[11px] font-bold tracking-tight px-2.5 py-0.5 rounded-full shadow-xs border border-red-500/40 pointer-events-none">
-                {language === "ar" ? "خصم" : "SAVE"}{" "}
-                {Math.round(((original - price) / original) * 100)}%
-              </span>
-            )}
-
-            {/* Out of Stock Badge */}
+            {/* Out of Stock Floating Alert Badge (only if completely unavailable) */}
             {isOutOfStock && (
-              <span className="absolute bottom-16 start-4 z-20 bg-slate-900/90 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-xs pointer-events-none">
+              <span className="absolute bottom-4 start-4 z-20 bg-slate-900/90 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-xs pointer-events-none">
                 {t("products.outOfStock")}
               </span>
             )}
@@ -319,7 +339,7 @@ function Detail() {
                     <img
                       src={imgUrl}
                       alt={`${localizedName} - ${idx + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain p-1 bg-white dark:bg-slate-900"
                       loading="lazy"
                     />
                     {idx === selectedImgIndex && (
@@ -333,30 +353,30 @@ function Detail() {
 
           {/* Quick Sensory Badges Bar */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
               <Leaf className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block">
+              <span className="font-bold text-slate-800 dark:text-slate-200 block">
                 {language === "ar" ? "نباتي 100%" : "100% Vegan"}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                 {language === "ar" ? "مستخلصات عضوية" : "Organic Extracts"}
               </span>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
               <Droplets className="w-4 h-4 text-sky-600 mx-auto mb-1" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block">
+              <span className="font-bold text-slate-800 dark:text-slate-200 block">
                 {language === "ar" ? "ترطيب 24h" : "24h Hydration"}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                 {language === "ar" ? "تغذية خلوية عميقة" : "Deep Cell Nourish"}
               </span>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
               <Award className="w-4 h-4 text-amber-600 mx-auto mb-1" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block">
+              <span className="font-bold text-slate-800 dark:text-slate-200 block">
                 {language === "ar" ? "جودة معتمدة" : "Certified Quality"}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                 {language === "ar" ? "آمن ومختبر" : "Safe & Tested"}
               </span>
             </div>
@@ -370,7 +390,9 @@ function Detail() {
             <span className="text-xs font-bold text-primary tracking-widest uppercase bg-primary/10 px-3 py-1 rounded-full">
               {localizedCategory}
             </span>
-            <span className="text-xs font-semibold text-slate-400">So Beauty Care</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+              So Beauty Care
+            </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-slate-50 mb-3 leading-snug">
@@ -383,17 +405,14 @@ function Detail() {
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               <span className="text-sm font-bold text-slate-900 dark:text-slate-100">4.9</span>
             </div>
-            <span className="text-slate-300">•</span>
-            <a
-              href="#product-reviews"
-              className="text-xs text-primary hover:underline font-semibold"
-            >
+            <span className="text-slate-400">•</span>
+            <a href="#product-reviews" className="text-xs text-primary hover:underline font-bold">
               {t("productDetail.verifiedReviews")}
             </a>
           </div>
 
-          {/* Pricing & Stock status */}
-          <div className="flex flex-wrap items-baseline gap-3 mb-4" suppressHydrationWarning>
+          {/* Pricing & Stock status with Integrated Discount Pill */}
+          <div className="flex flex-wrap items-center gap-3 mb-4" suppressHydrationWarning>
             <span
               suppressHydrationWarning
               className="text-3xl sm:text-4xl font-extrabold text-primary tracking-tight"
@@ -403,9 +422,16 @@ function Detail() {
             {formattedOriginal && (
               <span
                 suppressHydrationWarning
-                className="text-lg text-slate-400 line-through font-normal"
+                className="text-base sm:text-lg text-slate-500 dark:text-slate-400 line-through font-semibold decoration-slate-500 decoration-[1.5px]"
               >
                 {formattedOriginal}
+              </span>
+            )}
+            {original && original > price && (
+              <span className="inline-flex items-center text-[11px] font-bold text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-2.5 py-0.5 rounded-full">
+                {language === "ar"
+                  ? `خصم ${Math.round(((original - price) / original) * 100)}%`
+                  : `Save ${Math.round(((original - price) / original) * 100)}%`}
               </span>
             )}
             {secondaryPrice && (
@@ -416,19 +442,19 @@ function Detail() {
                 {secondaryPrice}
               </span>
             )}
-            <div className="ms-auto">
+            <div className="ms-auto flex items-center gap-2">
               {isOutOfStock ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-3 py-1 rounded-full">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {t("products.outOfStock")}
                 </span>
               ) : stock <= 5 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-3 py-1 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" />
                   {t("productDetail.remainingStockAlert").replace("{count}", String(stock))}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   {t("products.inStock")}
                 </span>
@@ -479,31 +505,36 @@ function Detail() {
             </div>
           )}
 
-          {/* Action Buttons (Ref attached for sticky observation) */}
+          {/* Unified Action Buttons Row: Equal Heights, Balanced Rectangular Shapes & Proportions */}
           <div ref={actionButtonsRef} className="flex flex-col sm:flex-row gap-3 mb-8">
             <Button
               size="lg"
               disabled={isOutOfStock}
-              className="flex-1 h-12 rounded-xl text-base font-bold gap-2 shadow-sm"
+              className="flex-1 h-12 rounded-xl text-base font-bold gap-2 shadow-sm cursor-pointer"
               onClick={handleAddToCart}
             >
               <ShoppingBag className="w-5 h-5" />
               {isOutOfStock ? t("products.outOfStock") : t("products.addToCart")}
             </Button>
 
+            {/* Equal Rectangular Wishlist Button */}
             <Button
               type="button"
               size="lg"
               variant="outline"
               onClick={handleWishlistToggle}
-              className={`h-12 px-4 rounded-xl font-semibold gap-2 transition-all shrink-0 ${
+              className={`flex-1 h-12 rounded-xl text-base font-bold gap-2 cursor-pointer transition-all border ${
                 isWished
-                  ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-900/50"
-                  : "hover:text-rose-600 hover:border-rose-300"
+                  ? "bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800"
+                  : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200"
               }`}
             >
-              <Heart className={`w-5 h-5 ${isWished ? "fill-current text-rose-500" : ""}`} />
-              <span className="text-xs sm:text-sm">
+              <Heart
+                className={`w-5 h-5 transition-transform active:scale-75 ${
+                  isWished ? "fill-rose-500 text-rose-500" : ""
+                }`}
+              />
+              <span>
                 {isWished ? t("productDetail.inWishlist") : t("productDetail.addToWishlist")}
               </span>
             </Button>
@@ -512,13 +543,13 @@ function Detail() {
               href={getWhatsAppProductOrderUrl(localizedName, price * quantity, p.id)}
               target="_blank"
               rel="noopener noreferrer"
-              className="sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <Button
                 type="button"
                 size="lg"
                 variant="outline"
-                className="w-full h-12 rounded-xl border-emerald-600/40 hover:border-emerald-600 hover:bg-emerald-50 text-emerald-700 font-bold gap-2"
+                className="w-full sm:w-auto h-12 px-5 rounded-xl border-emerald-600/40 hover:border-emerald-600 hover:bg-emerald-50 text-emerald-700 font-bold gap-2 cursor-pointer"
               >
                 <WhatsAppEmblemIcon size={20} className="text-emerald-600" />
                 {t("productDetail.instantWhatsAppOrder")}
@@ -540,6 +571,25 @@ function Detail() {
               <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
               <span>{t("productDetail.badgeCod")}</span>
             </div>
+          </div>
+
+          {/* Smart Payment & Inspection Strip */}
+          <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-xs">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                {language === "ar" ? "طرق السداد المعتمدة لهذا المنتج" : "Accepted Payment Methods"}
+              </span>
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                {language === "ar" ? "معاينة قبل الدفع ✓" : "Inspect First ✓"}
+              </span>
+            </div>
+            <p className="text-[11.5px] text-slate-600 dark:text-slate-300 mb-2.5 leading-relaxed">
+              {language === "ar"
+                ? "متاح السداد نقداً عند الاستلام (COD) بعد استلام وفحص الطرد من المندوب، أو عبر تحويل تطبيق بنكك الفوري."
+                : "Available via Cash on Delivery after order inspection, or instant Bankak wallet transfer."}
+            </p>
+            <PaymentWalletsBadges variant="compact" />
           </div>
         </div>
       </div>
@@ -758,7 +808,7 @@ function Detail() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
             {finalRelated.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -773,7 +823,7 @@ function Detail() {
             <img
               src={resolveProductImage(p.image_url)}
               alt={localizedName}
-              className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0"
+              className="w-11 h-11 rounded-xl object-contain p-0.5 bg-white dark:bg-slate-900 border border-slate-200 shrink-0"
             />
             <div className="min-w-0">
               <h4 className="text-xs font-bold truncate text-slate-900 dark:text-slate-100">
@@ -793,7 +843,7 @@ function Detail() {
               className="h-10 px-4 rounded-xl text-xs font-bold gap-1.5 shadow-xs"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>{t("products.addToCart")}</span>
+              <span>{t("common.addToCart")}</span>
             </Button>
 
             <a

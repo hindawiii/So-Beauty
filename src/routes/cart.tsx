@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { useCart } from "@/hooks/useCart";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
@@ -24,7 +25,7 @@ import {
   MapPin,
   Clock,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/cart")({
@@ -54,7 +55,7 @@ function CartPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
+    authClient.auth.getUser().then(({ data }) => setAuthed(!!data.user));
     const savedCity = localStorage.getItem("so_beauty_selected_city");
     if (savedCity) setSelectedCity(savedCity);
     else setSelectedCity(defaultCity);
@@ -82,18 +83,11 @@ function CartPage() {
       <SiteHeader />
       <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-5xl">
         {/* Spacious Top Back Navigation Bar with Safe Distance */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/60">
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2.5 px-4 py-2.5 min-h-11 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer self-start sm:self-auto"
-          >
-            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>{t("cart.backToShopping")}</span>
-          </Link>
-          <span className="text-xs text-muted-foreground font-medium self-start sm:self-auto ps-1 sm:ps-0">
-            {t("cart.secureCartBadge")}
-          </span>
-        </div>
+        <SmartBackBar
+          label={t("cart.backToShopping")}
+          badge={t("cart.secureCartBadge")}
+          fallbackTo="/"
+        />
 
         {/* Header Title */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -197,7 +191,7 @@ function CartPage() {
                     <img
                       src={resolveProductImage(it.image_url)}
                       alt={it.name}
-                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-slate-100 shrink-0"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-contain p-1 bg-white dark:bg-slate-900 border border-slate-100 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <Link

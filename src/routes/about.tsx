@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { Button } from "@/components/ui/button";
 import natural from "@/assets/natural-collection.jpg";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
@@ -65,6 +66,14 @@ function AboutPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
       <main className="flex-1">
+        <div className="container mx-auto px-4 pt-6 max-w-6xl">
+          <SmartBackBar
+            label={language === "ar" ? "العودة للمتجر" : "Back to Store"}
+            badge={language === "ar" ? "قصة المتجر ورؤيتنا" : "About & Story"}
+            fallbackTo="/"
+          />
+        </div>
+
         {/* Hero Section */}
         <section className="bg-primary/5 py-12 md:py-20">
           <div className="container mx-auto px-4 grid md:grid-cols-2 gap-8 md:gap-12 items-center">

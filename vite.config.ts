@@ -7,12 +7,23 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  nitro: {
+    output: {
+      dir: "dist",
+      serverDir: "dist/server",
+      publicDir: "dist/client",
+    },
+    prerender: {
+      routes: ["/"],
+    },
+  },
   vite: {
     server: {
       host: "0.0.0.0",
       port: 3000,
     },
     build: {
+      outDir: "dist",
       rollupOptions: {
         onwarn(warning, warn) {
           if (

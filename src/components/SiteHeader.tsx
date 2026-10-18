@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   ShoppingCart,
   User,
@@ -17,7 +17,7 @@ import {
   Quote,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,46 @@ export function SiteHeader() {
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [activeNoticeIdx, setActiveNoticeIdx] = useState(0);
+  const [cartBouncing, setCartBouncing] = useState(false);
+  const [wishlistBouncing, setWishlistBouncing] = useState(false);
+  const prevCount = useRef(count);
+  const prevWishlistCount = useRef(wishlistCount);
+
+  // Trigger smooth agile spring hop animation when counts increase
+  useEffect(() => {
+    if (count > 0 && count !== prevCount.current) {
+      setCartBouncing(true);
+      const timer = setTimeout(() => setCartBouncing(false), 500);
+      prevCount.current = count;
+      return () => clearTimeout(timer);
+    }
+    prevCount.current = count;
+  }, [count]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    if (wishlistCount > 0 && wishlistCount !== prevWishlistCount.current) {
+      setWishlistBouncing(true);
+      const timer = setTimeout(() => setWishlistBouncing(false), 500);
+      prevWishlistCount.current = wishlistCount;
+      return () => clearTimeout(timer);
+    }
+    prevWishlistCount.current = wishlistCount;
+  }, [wishlistCount]);
+
+  const triggerCartHop = () => {
+    setCartBouncing(true);
+    setTimeout(() => setCartBouncing(false), 500);
+  };
+
+  const triggerWishlistHop = () => {
+    setWishlistBouncing(true);
+    setTimeout(() => setWishlistBouncing(false), 500);
+  };
+
+  useEffect(() => {
+    authClient.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    const { data: sub } = authClient.auth.onAuthStateChange((_e, session) => {
       setEmail(session?.user?.email ?? null);
     });
     return () => sub.subscription.unsubscribe();
@@ -94,46 +130,58 @@ export function SiteHeader() {
   const hasLine2 = Boolean(localizedBannerSubNotice?.trim());
   const showBanner = hasLine1 || hasLine2;
 
+  useEffect(() => {
+    if (!hasLine1 || !hasLine2) return;
+    const interval = setInterval(() => {
+      setActiveNoticeIdx((prev) => (prev === 0 ? 1 : 0));
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [hasLine1, hasLine2]);
+
+  const currentAnnouncementText =
+    activeNoticeIdx === 0
+      ? localizedBannerNotice || t("header.topAnnouncement")
+      : localizedBannerSubNotice || localizedBannerNotice || t("header.topAnnouncement");
+
   return (
     <>
       <SandboxPreviewBanner />
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/70 shadow-2xs">
-        {/* Top Promo Banner - Fully dynamic auto-collapsing (1 line or 2 lines or hidden) */}
-        {showBanner && (
-          <div
-            className={`bg-primary text-primary-foreground text-center px-3 sm:px-4 text-[11px] sm:text-xs tracking-wide transition-all duration-200 ${
-              hasLine1 && hasLine2 ? "py-2 sm:py-2" : "py-1.5"
-            }`}
-          >
-            <div className="container mx-auto flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 text-center">
-              {hasLine1 && (
-                <div className="flex items-center justify-center gap-1.5 font-bold">
-                  {renderBannerIcon()}
-                  <span suppressHydrationWarning>{localizedBannerNotice}</span>
-                </div>
-              )}
+      <header className="sticky top-0 z-40 bg-background/98 border-b border-border/70 shadow-2xs">
+        {/* Single Slim Unified Utility & Promo Bar (Streamlined ~32px) */}
+        <div className="bg-primary text-primary-foreground text-[11px] sm:text-xs tracking-wide transition-all duration-200 select-none border-b border-white/10">
+          <div className="container mx-auto px-2.5 sm:px-6 h-8 sm:h-8.5 flex items-center justify-between gap-2">
+            {/* Promo Announcement Ticker (Centered & Flowing) */}
+            <div className="flex-1 flex items-center justify-start sm:justify-center overflow-hidden min-w-0">
+              <div className="flex items-center gap-1.5 font-medium truncate max-w-full transition-opacity duration-300">
+                {renderBannerIcon()}
+                <span suppressHydrationWarning className="truncate text-[10.5px] sm:text-xs">
+                  {currentAnnouncementText}
+                </span>
+              </div>
+            </div>
 
-              {hasLine1 && hasLine2 && <span className="opacity-60 hidden md:inline">•</span>}
-
-              {hasLine2 && (
-                <div className="opacity-95 flex items-center justify-center flex-wrap gap-1 text-[10.5px] sm:text-xs">
-                  <span suppressHydrationWarning>{localizedBannerSubNotice}</span>
-                  <Link
-                    to="/products"
-                    className="underline font-bold ms-1 hover:opacity-100 decoration-1 underline-offset-2 transition-opacity"
-                  >
-                    {t("header.shopNow")}
-                  </Link>
-                </div>
-              )}
+            {/* Language & Currency Switchers */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <LanguageSwitcher variant="topbar" />
+              <CurrencySwitcher variant="topbar" />
+              <Link
+                to="/track-order"
+                className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium text-white/90 hover:text-white transition-opacity ms-1"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>{t("header.trackOrderBtn")}</span>
+              </Link>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Main Row: Optimized Spacious Layout across Mobile, Tablet, and Desktop */}
         <div className="container mx-auto px-2.5 sm:px-6 h-15 sm:h-16 md:h-20 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
           {/* Left/Start: Official Brand Identity (Supports Logo Image or Typographic Wordmark) */}
-          <Link to="/" className="shrink-0 text-start flex items-center group py-0.5 select-none">
+          <Link
+            to="/"
+            className="shrink-0 text-start flex items-center group py-0.5 select-none min-w-0"
+          >
             {settings.logoUrl ? (
               <img
                 src={settings.logoUrl}
@@ -142,18 +190,33 @@ export function SiteHeader() {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex flex-col justify-center">
+              <div className="flex flex-col justify-center min-w-0">
                 <span
-                  className="text-base sm:text-xl md:text-2xl font-black text-primary tracking-tight leading-none transition-transform group-hover:scale-102"
-                  style={{ fontFamily: "var(--font-latin)" }}
+                  className="text-base sm:text-xl md:text-2xl font-black text-primary tracking-tight leading-none transition-transform group-hover:scale-102 truncate"
+                  style={{
+                    fontFamily:
+                      language === "ar"
+                        ? "var(--font-brand-arabic), 'El Messiri', serif"
+                        : "var(--font-latin), 'Playfair Display', serif",
+                    fontDisplay: "swap",
+                  }}
                 >
-                  {settings.storeName.split("-")[1]?.trim() || settings.storeName}
+                  {language === "ar"
+                    ? settings.storeName.split("-")[0]?.trim() || "سو بيوتي"
+                    : settings.storeName_en || "So Beauty"}
                 </span>
                 <span
-                  className="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 tracking-normal leading-tight mt-0.5"
-                  style={{ fontFamily: "var(--font-display)" }}
+                  className="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 tracking-normal leading-tight mt-0.5 truncate"
+                  style={{
+                    fontFamily:
+                      language === "ar"
+                        ? "var(--font-latin), 'Playfair Display', serif"
+                        : "var(--font-brand-arabic), 'El Messiri', serif",
+                  }}
                 >
-                  {settings.storeName.split("-")[0]?.trim() || settings.storeName}
+                  {language === "ar"
+                    ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
+                    : settings.tagline_en || "Pure Botanical Care"}
                 </span>
               </div>
             )}
@@ -179,13 +242,13 @@ export function SiteHeader() {
           {/* Dynamic spacer for mobile/small screens */}
           <div className="flex-1 md:hidden" />
 
-          {/* Right/End: Responsive Grouped Actions (Adaptive to prevent any horizontal overflow) */}
+          {/* Right/End: Responsive Grouped Actions (Spacious and breathable touch targets) */}
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 shrink-0">
             {/* 1. Luxe Search Lens Icon (Shown on mobile & tablets < md) */}
             <button
               type="button"
               onClick={() => setIsSearchModalOpen(true)}
-              className="md:hidden relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px] rounded-full bg-muted/60 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0"
+              className="md:hidden relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("common.search")}
               title={t("common.search")}
             >
@@ -193,64 +256,52 @@ export function SiteHeader() {
               <span className="sr-only">{t("common.search")}</span>
             </button>
 
-            {/* 2. Desktop Utility Group: Order Tracking (>= lg) */}
-            <div className="hidden lg:flex items-center ps-1">
-              <Link
-                to="/track-order"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors border border-transparent hover:border-border/60 cursor-pointer min-h-[36px]"
-                title={t("header.trackOrderBtn")}
-              >
-                <Truck className="w-3.5 h-3.5 text-primary" />
-                <span>{t("header.trackOrderBtn")}</span>
-              </Link>
-            </div>
-
-            {/* 3. Global Language Switcher (Pill for Mobile & Desktop) */}
-            <div className="flex items-center shrink-0">
-              <LanguageSwitcher />
-            </div>
-
-            {/* 4. Smart Currency Switcher: Available on Mobile, Tablet & Desktop */}
-            <div className="flex items-center shrink-0">
-              <CurrencySwitcher />
-            </div>
-
-            {/* 5. Wishlist Link (Restored on ALL devices including mobile) */}
+            {/* 2. Wishlist Link (Encased in smart circular shell matching Search & Account) */}
             <Link
               to="/wishlist"
-              className="relative p-2 sm:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-rose-600 hover:bg-muted/70 transition-colors inline-flex items-center justify-center cursor-pointer shrink-0 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
+              onClick={triggerWishlistHop}
+              className="relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-700 dark:text-slate-200 hover:text-rose-600 border border-border/70 hover:border-rose-400/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("header.wishlistCount")}
               title={t("header.wishlistCount")}
             >
-              <Heart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform active:scale-75" />
+              <Heart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-105" />
               {wishlistCount > 0 && (
-                <span className="absolute -top-0.5 -start-0.5 bg-rose-500 text-white text-[10px] font-extrabold min-w-4 h-4 sm:min-w-4.5 sm:h-4.5 px-1 rounded-full flex items-center justify-center shadow-xs">
+                <span
+                  className={`absolute -top-1 -end-1 sm:-top-1.5 sm:-end-1.5 min-w-[17px] h-4 sm:h-4.5 px-1 rounded-full bg-rose-500 text-white font-mono font-black text-[9.5px] sm:text-[10px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
+                    wishlistBouncing ? "animate-agile-hop" : "animate-continuous-hop"
+                  }`}
+                >
                   {wishlistCount}
                 </span>
               )}
             </Link>
 
-            {/* 6. Shopping Cart Button (Always visible on Mobile, Tablet & PC) */}
+            {/* 3. Shopping Cart Button (Encased in smart circular shell matching Search & Account) */}
             <Link
               to="/cart"
-              className="relative p-2 sm:p-2.5 rounded-full text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-muted/70 transition-colors inline-flex items-center justify-center cursor-pointer shrink-0 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
+              onClick={triggerCartHop}
+              className="relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("header.cartCount")}
               title={t("header.cartCount")}
             >
-              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform active:scale-75" />
+              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-105" />
               {count > 0 && (
-                <span className="absolute -top-0.5 -start-0.5 bg-primary text-primary-foreground text-[10px] font-extrabold min-w-4 h-4 sm:min-w-4.5 sm:h-4.5 px-1 rounded-full flex items-center justify-center shadow-xs">
+                <span
+                  className={`absolute -top-1 -end-1 sm:-top-1.5 sm:-end-1.5 min-w-[17px] h-4 sm:h-4.5 px-1 rounded-full bg-primary text-primary-foreground font-mono font-black text-[9.5px] sm:text-[10px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
+                    cartBouncing ? "animate-agile-hop" : "animate-continuous-hop"
+                  }`}
+                >
                   {count}
                 </span>
               )}
             </Link>
 
-            {/* 6. Login / Account Controls: Protected strictly between Cart and Hamburger Menu */}
+            {/* 4. Login / Account Controls: Protected strictly between Cart and Hamburger Menu */}
             {email ? (
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                 <Link
                   to="/account"
-                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-muted/70 text-slate-700 dark:text-slate-200 hover:text-primary transition-colors cursor-pointer min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px]"
+                  className="flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95"
                   aria-label={t("header.myAccount")}
                   title={`${t("header.myAccount")} (${email})`}
                 >
@@ -260,10 +311,10 @@ export function SiteHeader() {
                   onClick={async () => {
                     await queryClient.cancelQueries();
                     queryClient.clear();
-                    await supabase.auth.signOut();
+                    await authClient.auth.signOut();
                     navigate({ to: "/", replace: true });
                   }}
-                  className="hidden sm:inline-flex p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer min-w-[38px] min-h-[38px] items-center justify-center"
+                  className="hidden sm:inline-flex p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer min-w-[38px] min-h-[38px] items-center justify-center active:scale-95"
                   aria-label={t("header.logout")}
                   title={t("header.logout")}
                 >
@@ -275,7 +326,7 @@ export function SiteHeader() {
                 {/* Mobile (< sm): Sleek compact circular user icon button with >= 40px touch zone */}
                 <Link
                   to="/auth"
-                  className="sm:hidden flex items-center justify-center w-9 h-9 min-w-[38px] min-h-[38px] rounded-full bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer"
+                  className="sm:hidden flex items-center justify-center w-9.5 h-9.5 min-w-[38px] min-h-[38px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 text-primary hover:bg-primary/10 border border-border/70 hover:border-primary/40 shadow-2xs transition-all cursor-pointer active:scale-95"
                   aria-label={t("header.login")}
                   title={t("header.login")}
                 >
@@ -408,7 +459,7 @@ export function SiteHeader() {
                         setOpen(false);
                         await queryClient.cancelQueries();
                         queryClient.clear();
-                        await supabase.auth.signOut();
+                        await authClient.auth.signOut();
                         navigate({ to: "/", replace: true });
                       }}
                       className="flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl hover:bg-rose-50 text-rose-600 transition-colors w-full text-start min-h-[44px] cursor-pointer"

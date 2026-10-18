@@ -1,9 +1,34 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { generatePaletteFromHex } from "@/lib/colorUtils";
 
+export type HomepageSectionId =
+  | "hero"
+  | "marquee"
+  | "trust_badges"
+  | "skin_types"
+  | "featured_products"
+  | "bundles"
+  | "promo_banner"
+  | "before_after"
+  | "reviews";
+
+export const DEFAULT_HOMEPAGE_SECTIONS_ORDER: HomepageSectionId[] = [
+  "hero",
+  "marquee",
+  "trust_badges",
+  "skin_types",
+  "featured_products",
+  "bundles",
+  "promo_banner",
+  "before_after",
+  "reviews",
+];
+
 export interface StoreBrandingSettings {
   storeName: string;
+  storeName_en?: string;
   tagline: string;
+  tagline_en?: string;
   whatsappNumber: string;
   supportPhone: string;
   supportEmail: string;
@@ -16,6 +41,7 @@ export interface StoreBrandingSettings {
   bannerSubNotice: string;
   bannerSubNotice_en?: string;
   bannerIcon?: "sparkles" | "gift" | "truck" | "crown" | "shield" | "quote" | "none";
+  showTopBanner?: boolean;
   aboutTitle: string;
   aboutTitle_en?: string;
   aboutDescription: string;
@@ -24,6 +50,12 @@ export interface StoreBrandingSettings {
   isDemoMode: boolean;
   adminPin: string;
 
+  // Social Links
+  instagramUrl?: string;
+  tiktokUrl?: string;
+  facebookUrl?: string;
+  snapchatUrl?: string;
+
   // Dynamic Homepage Sections Configuration
   heroTitle?: string;
   heroTitle_en?: string;
@@ -31,8 +63,10 @@ export interface StoreBrandingSettings {
   heroSubtitle_en?: string;
   heroPrimaryCtaText?: string;
   heroPrimaryCtaText_en?: string;
+  heroPrimaryCtaLink?: string;
   heroSecondaryCtaText?: string;
   heroSecondaryCtaText_en?: string;
+  heroSecondaryCtaLink?: string;
   heroImageUrl?: string;
 
   // Features (4 Trust Badges)
@@ -45,10 +79,17 @@ export interface StoreBrandingSettings {
   feature4Title?: string;
   feature4Desc?: string;
 
+  // Marquee Ribbon
+  showMarqueeRibbon?: boolean;
+  marqueeText?: string;
+  marqueeText_en?: string;
+
   // Promo Banner Section
+  showPromoBanner?: boolean;
   promoTitle?: string;
   promoSubtitle?: string;
   promoCtaText?: string;
+  promoCtaLink?: string;
   promoImageUrl?: string;
 
   // Sections Visibility Toggles
@@ -57,6 +98,10 @@ export interface StoreBrandingSettings {
   showCustomerReviews?: boolean;
   reviewsTitle?: string;
   reviewsSubtitle?: string;
+
+  // Phase 2: Full Drag & Drop Modular Section Ordering
+  sectionsOrder?: HomepageSectionId[];
+  hiddenSections?: HomepageSectionId[];
 
   // Color & Typography Harmony
   themeColorHex?: string;
@@ -81,7 +126,9 @@ export interface StoreBrandingSettings {
 // Immutable golden original settings for "سو بيوتي"
 export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   storeName: "سو بيوتي - So Beauty",
+  storeName_en: "So Beauty",
   tagline: "سو بيوتي · عناية طبيعية",
+  tagline_en: "Pure Botanical Skincare",
   whatsappNumber: "249900776688",
   supportPhone: "+249 900 776 688",
   supportEmail: "sobeauty.one@gmail.com",
@@ -92,7 +139,8 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   bannerNotice: "عناية طبيعية متكاملة بكل تفاصيل بشرتك",
   bannerNotice_en: "Complete Natural Care Tailored to Every Detail of Your Skin",
   bannerSubNotice: "من الترطيب إلى النضارة، اكتشفي ما يلائمكِ بعناية. تسوّقي الآن",
-  bannerSubNotice_en: "From deep hydration to radiant glow, discover your personalized routine. Shop now.",
+  bannerSubNotice_en:
+    "From deep hydration to radiant glow, discover your personalized routine. Shop now.",
   bannerIcon: "sparkles",
   aboutTitle: "روائع العناية",
   aboutTitle_en: "Art of Natural Skincare",
@@ -133,8 +181,13 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   showSkinTypesSection: true,
   showBeforeAfterSection: true,
   showCustomerReviews: true,
+  showPromoBanner: true,
+  showMarqueeRibbon: true,
   reviewsTitle: "آراء عملائنا",
   reviewsSubtitle: "تجارب حقيقية لعميلاتنا مع منتجات سو بيوتي الطبيعية للعناية بالبشرة",
+
+  sectionsOrder: DEFAULT_HOMEPAGE_SECTIONS_ORDER,
+  hiddenSections: [],
 
   themeColorHex: "#7b3370",
   themeColorOklch: "oklch(0.48 0.08 300)",

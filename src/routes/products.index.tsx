@@ -3,8 +3,10 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense, useState, useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { ProductCard } from "@/components/ProductCard";
-import { listProducts } from "@/lib/products.functions";
+import { listProducts, attachMetadataToProduct } from "@/lib/products.functions";
+import { MOCK_PRODUCTS } from "@/lib/mock-products";
 import {
   SlidersHorizontal,
   Sparkles,
@@ -32,6 +34,9 @@ import {
   getLocalizedCategory,
   getLocalizedProductName,
   getLocalizedProductDescription,
+  matchesSkinType,
+  getLocalizedSkinType,
+  SKIN_TYPE_TRANSLATIONS,
 } from "@/lib/product-localization";
 
 const productsQuery = queryOptions({
@@ -43,6 +48,7 @@ export const Route = createFileRoute("/products/")({
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : undefined,
     category: typeof search.category === "string" ? search.category : undefined,
+    skinType: typeof search.skinType === "string" ? search.skinType : undefined,
   }),
   head: () => ({
     meta: [
@@ -54,7 +60,16 @@ export const Route = createFileRoute("/products/")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(productsQuery),
+  loader: ({ context }) => {
+    // 1. Instant Cache Seeding so products render in 0ms without blank screen or spinner
+    const cached = context.queryClient.getQueryData(["products", "all"]);
+    if (!cached) {
+      const activeMocks = MOCK_PRODUCTS.filter((p) => p.is_active).map(attachMetadataToProduct);
+      context.queryClient.setQueryData(["products", "all"], activeMocks);
+    }
+    // 2. Background revalidation
+    context.queryClient.prefetchQuery(productsQuery);
+  },
   component: ProductsPage,
   errorComponent: ({ error }) => (
     <div className="p-8 text-center text-rose-600">
@@ -65,11 +80,18 @@ export const Route = createFileRoute("/products/")({
 });
 
 function ProductsPage() {
-  const { q, category: initialCategory } = Route.useSearch();
+  const { q, category: initialCategory, skinType: initialSkinType } = Route.useSearch();
+  const { language } = useLanguage();
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-7xl">
+        {/* Smart Back Navigation Bar */}
+        <SmartBackBar
+          label={language === "ar" ? "العودة للمتجر" : "Back to Store"}
+          badge={language === "ar" ? "كتالوج المنتجات" : "Product Catalog"}
+          fallbackTo="/"
+        />
         <Suspense
           fallback={
             <div className="py-24 text-center">
@@ -78,7 +100,11 @@ function ProductsPage() {
             </div>
           }
         >
-          <ProductCatalog q={q} initialCategory={initialCategory} />
+          <ProductCatalog
+            q={q}
+            initialCategory={initialCategory}
+            initialSkinType={initialSkinType}
+          />
         </Suspense>
       </main>
       <SiteFooter />
@@ -88,7 +114,15 @@ function ProductsPage() {
 
 type SortOption = "default" | "price-asc" | "price-desc" | "discount" | "name-asc";
 
-function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: string }) {
+function ProductCatalog({
+  q,
+  initialCategory,
+  initialSkinType,
+}: {
+  q?: string;
+  initialCategory?: string;
+  initialSkinType?: string;
+}) {
   const { formatPrice } = useCurrency();
   const { t, language, isRTL } = useLanguage();
   const { data: allProducts } = useSuspenseQuery(productsQuery);
@@ -96,6 +130,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
   // States
   const [searchQuery, setSearchQuery] = useState<string>(q || "");
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || "all");
+  const [selectedSkinType, setSelectedSkinType] = useState<string>(initialSkinType || "all");
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [onlyOffers, setOnlyOffers] = useState<boolean>(initialCategory === "offers");
@@ -122,17 +157,27 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedCategory !== "all") count++;
+    if (selectedSkinType !== "all") count++;
     if (onlyInStock) count++;
     if (onlyOffers) count++;
     if (priceRange < maxCatalogPrice) count++;
     if (searchQuery.trim().length > 0) count++;
     return count;
-  }, [selectedCategory, onlyInStock, onlyOffers, priceRange, maxCatalogPrice, searchQuery]);
+  }, [
+    selectedCategory,
+    selectedSkinType,
+    onlyInStock,
+    onlyOffers,
+    priceRange,
+    maxCatalogPrice,
+    searchQuery,
+  ]);
 
   // Reset all filters helper
   const handleResetFilters = () => {
     setSearchQuery("");
     setSelectedCategory("all");
+    setSelectedSkinType("all");
     setSortBy("default");
     setOnlyInStock(false);
     setOnlyOffers(false);
@@ -173,6 +218,11 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
       } else {
         list = list.filter((p) => p.category === selectedCategory);
       }
+    }
+
+    // Skin type filter
+    if (selectedSkinType !== "all") {
+      list = list.filter((p) => matchesSkinType(p, selectedSkinType));
     }
 
     // Offers only toggle
@@ -223,6 +273,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
     allProducts,
     searchQuery,
     selectedCategory,
+    selectedSkinType,
     onlyOffers,
     onlyInStock,
     priceRange,
@@ -248,13 +299,31 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
               ? language === "ar"
                 ? `نتائج البحث عن "${searchQuery}"`
                 : `Search results for "${searchQuery}"`
-              : selectedCategory !== "all"
+              : selectedSkinType !== "all" && SKIN_TYPE_TRANSLATIONS[selectedSkinType]
                 ? language === "ar"
-                  ? `منتجات قسم ${getLocalizedCategory(selectedCategory, language)}`
-                  : `${getLocalizedCategory(selectedCategory, language)} Products`
-                : t("products.title")}
+                  ? SKIN_TYPE_TRANSLATIONS[selectedSkinType].titleAr
+                  : SKIN_TYPE_TRANSLATIONS[selectedSkinType].titleEn
+                : selectedCategory !== "all"
+                  ? language === "ar"
+                    ? selectedCategory === "offers"
+                      ? "عروض التوفير والتخفيضات الحصرية"
+                      : `منتجات قسم ${getLocalizedCategory(selectedCategory, language)}`
+                    : selectedCategory === "offers"
+                      ? "Special Offers & Hot Deals"
+                      : `${getLocalizedCategory(selectedCategory, language)} Products`
+                  : t("products.title")}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">{t("products.subtitle")}</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            {selectedSkinType !== "all" && SKIN_TYPE_TRANSLATIONS[selectedSkinType]
+              ? language === "ar"
+                ? SKIN_TYPE_TRANSLATIONS[selectedSkinType].subtitleAr
+                : SKIN_TYPE_TRANSLATIONS[selectedSkinType].subtitleEn
+              : selectedCategory === "offers"
+                ? language === "ar"
+                  ? "أقوى التخفيضات الخاصة والأسعار التوفيرية على مستحضرات التجميل والعناية."
+                  : "Top special discounts and value savings on beauty and skincare essentials."
+                : t("products.subtitle")}
+          </p>
         </div>
 
         {/* Products Counter Badge */}
@@ -392,6 +461,40 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
                         }`}
                       >
                         {getLocalizedCategory(c, language)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mobile: Skin Types */}
+                <div className="border-t pt-5">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                    {language === "ar" ? "نوع واحتياج البشرة" : "Skin Type & Needs"}
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSkinType("all")}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center ${
+                        selectedSkinType === "all"
+                          ? "bg-primary text-white"
+                          : "bg-muted text-slate-700"
+                      }`}
+                    >
+                      {language === "ar" ? "الكل (جميع البشرات)" : "All Skin Types"}
+                    </button>
+                    {Object.entries(SKIN_TYPE_TRANSLATIONS).map(([key, item]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedSkinType(key)}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center ${
+                          selectedSkinType === key
+                            ? "bg-primary text-white shadow-xs"
+                            : "bg-muted text-slate-700"
+                        }`}
+                      >
+                        {language === "ar" ? item.ar : item.en}
                       </button>
                     ))}
                   </div>
@@ -604,6 +707,22 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
             </span>
           )}
 
+          {selectedSkinType !== "all" && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary font-bold">
+              {language === "ar"
+                ? `نوع البشرة: ${getLocalizedSkinType(selectedSkinType, language)}`
+                : `Skin Type: ${getLocalizedSkinType(selectedSkinType, language)}`}
+              <button
+                type="button"
+                onClick={() => setSelectedSkinType("all")}
+                className="hover:text-destructive"
+                aria-label={language === "ar" ? "إلغاء تصفية نوع البشرة" : "Clear skin type filter"}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
           {onlyInStock && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
               {t("products.inStock")}
@@ -677,7 +796,7 @@ function ProductCatalog({ q, initialCategory }: { q?: string; initialCategory?: 
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
           {filteredProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

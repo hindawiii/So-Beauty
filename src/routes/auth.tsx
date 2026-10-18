@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +59,7 @@ function AuthPage() {
     .max(72);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    authClient.auth.getUser().then(({ data }) => {
       if (data.user)
         navigate({ to: redirect && redirect.startsWith("/") ? redirect : "/", replace: true });
     });
@@ -73,7 +73,7 @@ function AuthPage() {
       const passV = passwordSchema.parse(password);
       if (mode === "signup") {
         const name = z.string().trim().min(2).max(100).parse(fullName);
-        const { error } = await supabase.auth.signUp({
+        const { error } = await authClient.auth.signUp({
           email: emailV,
           password: passV,
           options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
@@ -81,7 +81,7 @@ function AuthPage() {
         if (error) throw error;
         toast.success(t("auth.registerSuccessToast"));
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await authClient.auth.signInWithPassword({
           email: emailV,
           password: passV,
         });

@@ -3,6 +3,7 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { ProductCard } from "@/components/ProductCard";
 import { listProducts } from "@/lib/products.functions";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
@@ -37,7 +38,10 @@ function Page() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        {/* Smart Back Navigation Bar */}
+        <SmartBackBar label={t("nav.home")} badge={t("boxes.title")} fallbackTo="/" />
+
         {/* Header Banner */}
         <div className="mb-8 md:mb-10 text-center sm:text-start">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
@@ -66,7 +70,7 @@ function Page() {
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="rounded-2xl border border-border/60 bg-muted/20 p-3 animate-pulse">
           <div className="aspect-square rounded-xl bg-muted/60 mb-3" />
@@ -105,7 +109,7 @@ function Grid() {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
       {data.map((p) => (
         <ProductCard key={p.id} product={p} />
       ))}

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trackOrder } from "@/lib/orders.functions";
@@ -142,19 +143,12 @@ function TrackOrderPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
       <main className="flex-1 container mx-auto px-4 py-6 md:py-10 max-w-4xl">
-        {/* Spacious Top Back Navigation Bar */}
-        <div className="mb-8 flex items-center justify-between gap-4 pb-4 border-b border-border/60">
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all hover:shadow-xs active:scale-95 cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4 rtl:rotate-0 rotate-180 text-primary" />
-            <span>{t("tracking.backToStore")}</span>
-          </Link>
-          <span className="text-xs text-muted-foreground font-medium">
-            {t("tracking.centerName")}
-          </span>
-        </div>
+        {/* Spacious Top Back Navigation Bar with Smart History Back */}
+        <SmartBackBar
+          label={t("tracking.backToStore")}
+          badge={t("tracking.centerName")}
+          fallbackTo="/"
+        />
 
         {/* Header Hero */}
         <div className="text-center max-w-xl mx-auto mb-8">

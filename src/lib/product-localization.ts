@@ -1,4 +1,7 @@
 import type { Product } from "@/lib/mock-products";
+import { cleanProductDescription } from "./product-images";
+
+export { cleanProductDescription };
 
 /**
  * Known product category translations mapping
@@ -12,6 +15,7 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   boxes: { ar: "بوكسات فاخرة", en: "Gift Sets" },
   box: { ar: "بوكسات وباقات فاخرة", en: "Care Bundles & Sets" },
   offer: { ar: "عروض التوفير الخاصة", en: "Special Super Deals" },
+  offers: { ar: "عروض التوفير", en: "Special Offers" },
   accessory: { ar: "أدوات وإكسسوارات العناية", en: "Beauty Tools & Accessories" },
   "عناية بالبشرة": { ar: "عناية بالبشرة", en: "Skincare" },
   "عناية بالشعر": { ar: "عناية بالشعر", en: "Haircare" },
@@ -19,7 +23,8 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   مكياج: { ar: "مكياج", en: "Makeup" },
   عطور: { ar: "عطور", en: "Fragrance" },
   "بوكسات فاخرة": { ar: "بوكسات فاخرة", en: "Gift Sets" },
-  "عروض التوفير": { ar: "عروض التوفير", en: "Super Deals" },
+  "عروض التوفير": { ar: "عروض التوفير", en: "Special Offers" },
+  "عروض التوفير الخاصة": { ar: "عروض التوفير الخاصة", en: "Special Super Deals" },
 };
 
 /**
@@ -339,4 +344,133 @@ export function getLocalizedCategory(
     return lang === "ar" ? found.ar : found.en;
   }
   return category;
+}
+
+/**
+ * Skin types configuration and multilingual metadata
+ */
+export const SKIN_TYPE_TRANSLATIONS: Record<
+  string,
+  {
+    ar: string;
+    en: string;
+    titleAr: string;
+    titleEn: string;
+    subtitleAr: string;
+    subtitleEn: string;
+    keywords: string[];
+  }
+> = {
+  hydrated: {
+    ar: "بشرة مرطبة",
+    en: "Hydrated Skin",
+    titleAr: "مستحضرات العناية والترطيب للبشرة الجافة والعادية",
+    titleEn: "Deep Hydration & Moisture Care Essentials",
+    subtitleAr:
+      "مستحضرات غنية بحمض الهيالورونيك والصبار والمكونات المهدئة لحبس الرطوبة ومحاربة الجفاف.",
+    subtitleEn:
+      "Formulas infused with Hyaluronic Acid and botanical extracts to replenish and lock in moisture.",
+    keywords: ["ترطيب", "هيالورونيك", "جفاف", "رطوبة", "hydrat", "moisture", "hyaluronic", "dry"],
+  },
+  balanced: {
+    ar: "بشرة متوازنة",
+    en: "Balanced Skin",
+    titleAr: "مستحضرات التوازن وتوحيد المسام للبشرة المختلطة",
+    titleEn: "Balancing & Pore Purifying Care",
+    subtitleAr: "تركيبات نقية لتنقية المسام وتوازن إفراز الزيوت والحفاظ على حاجز البشرة الطبيعي.",
+    subtitleEn:
+      "Clarifying formulas designed to regulate excess oil, purify pores, and maintain skin barrier harmony.",
+    keywords: [
+      "متوازن",
+      "موازن",
+      "غسول",
+      "مسام",
+      "تونر",
+      "مهدئ",
+      "balance",
+      "cleanser",
+      "pore",
+      "toner",
+      "clarif",
+    ],
+  },
+  firm: {
+    ar: "بشرة مشدودة",
+    en: "Firm Skin",
+    titleAr: "مستحضرات الشد والمرونة وتجديد البشرة",
+    titleEn: "Firming, Elasticity & Renewal Essentials",
+    subtitleAr:
+      "عناية مكثفة بمضادات الأكسدة والزيوت المعالجة وأدوات التدليك لشد البشرة وتخفيف الخطوط الدقيقة.",
+    subtitleEn:
+      "Advanced firming treatments, natural face oils, and facial tools to boost collagen and elasticity.",
+    keywords: [
+      "مشدود",
+      "شد",
+      "تجديد",
+      "كولاجين",
+      "رولر",
+      "ورد",
+      "مرونة",
+      "firm",
+      "elasticity",
+      "collagen",
+      "roller",
+      "rejuvenat",
+    ],
+  },
+  glow: {
+    ar: "بشرة مشرقة",
+    en: "Glowing & Radiant Skin",
+    titleAr: "مستحضرات الإشراقة والنضارة الفورية",
+    titleEn: "Instant Radiance & Healthy Glow Collection",
+    subtitleAr:
+      "سيرومات ومجموعات فيتامين سي لتوحيد اللون ومنح بشرتكِ توهجاً طبيعياً وصحياً لا يقاوم.",
+    subtitleEn:
+      "Vitamin C serums, radiance boosters, and brightening sets to revive dull complexion and restore glow.",
+    keywords: [
+      "مشرق",
+      "إشراق",
+      "توهج",
+      "نضارة",
+      "فيتامين سي",
+      "glow",
+      "radiance",
+      "bright",
+      "vitamin c",
+    ],
+  },
+};
+
+/**
+ * Check if a product matches a skin type query
+ */
+export function matchesSkinType(product: Product, skinTypeKey: string): boolean {
+  const config = SKIN_TYPE_TRANSLATIONS[skinTypeKey.toLowerCase().trim()];
+  if (!config) return true;
+  const searchable = [
+    product.name,
+    product.name_en ?? "",
+    product.description ?? "",
+    product.description_en ?? "",
+    product.category ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return config.keywords.some((k) => searchable.includes(k.toLowerCase()));
+}
+
+/**
+ * Returns localized label for skin type
+ */
+export function getLocalizedSkinType(
+  skinTypeKey: string | undefined | null,
+  lang: "ar" | "en",
+): string {
+  if (!skinTypeKey) return "";
+  const config = SKIN_TYPE_TRANSLATIONS[skinTypeKey.toLowerCase().trim()];
+  if (config) {
+    return lang === "ar" ? config.ar : config.en;
+  }
+  return skinTypeKey;
 }

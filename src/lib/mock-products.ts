@@ -1,4 +1,4 @@
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/types/database.types";
 
 export type Product = Database["public"]["Tables"]["products"]["Row"] & {
   gallery_images?: string[] | null;
@@ -147,6 +147,24 @@ export const MOCK_PRODUCTS: Product[] = [
     category: "accessory",
     stock: 50,
     is_featured: false,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "c9d0e1f2-a3b4-4c5d-8e6f-1a2b3c4d5e6f",
+    name: "تونر ماء الورد المنعش للبشرة",
+    name_en: "Organic Rose Water Refreshing Toner",
+    description:
+      "تونر طبيعي مهدئ وموازن لحموضة البشرة، ينقي المسام ويمنح انتعاشاً يدوم طوال اليوم بخلاصة الورد الجوري الطبيعي.",
+    description_en:
+      "Refreshing botanical toner that balances skin pH, refines pores, and delivers soothing all-day hydration with organic rose water.",
+    price: 180,
+    original_price: 230,
+    image_url: "/src/assets/product-1.jpg",
+    category: "skincare",
+    stock: 22,
+    is_featured: true,
     is_active: true,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",

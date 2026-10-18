@@ -161,7 +161,7 @@ function fallbackTranslate(data: TranslateProductInput): TranslateProductOutput 
  * Server Function: AI-Driven Product Translation using Gemini API
  */
 export const adminTranslateProductAi = createServerFn({ method: "POST" })
-  .inputValidator((data: TranslateProductInput) => data)
+  .validator((data: TranslateProductInput) => data)
   .handler(async ({ data }): Promise<TranslateProductOutput> => {
     // Security check
     await requireAdminGuard(data.adminPin);
@@ -307,7 +307,7 @@ export interface BulkTranslateResult {
  * Server Function: Bulk AI Translation for Multiple Products at once
  */
 export const adminBulkTranslateProductsAi = createServerFn({ method: "POST" })
-  .inputValidator((data: { products: BulkTranslateItem[]; adminPin?: string }) => data)
+  .validator((data: { products: BulkTranslateItem[]; adminPin?: string }) => data)
   .handler(async ({ data }): Promise<{ ok: boolean; results: BulkTranslateResult[] }> => {
     await requireAdminGuard(data.adminPin);
 
@@ -459,7 +459,7 @@ export interface TranslateTextOutput {
  * Server Function: General Smart Marketing & UI Text Translation
  */
 export const adminTranslateTextAi = createServerFn({ method: "POST" })
-  .inputValidator((data: TranslateTextInput) => data)
+  .validator((data: TranslateTextInput) => data)
   .handler(async ({ data }): Promise<TranslateTextOutput> => {
     await requireAdminGuard(data.adminPin);
 

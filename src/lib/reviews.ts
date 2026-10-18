@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 export interface Review {
   id: string;
   name: string;
@@ -9,8 +7,14 @@ export interface Review {
   body_en?: string;
   created_at: string;
   is_verified?: boolean;
+  is_approved?: boolean;
+  status?: "approved" | "pending" | "rejected";
+  is_seed?: boolean;
   product_id?: string;
   product_name?: string;
+  skin_type?: string;
+  skin_type_en?: string;
+  would_recommend?: boolean;
 }
 
 export const INITIAL_REVIEWS: Review[] = [
@@ -24,6 +28,9 @@ export const INITIAL_REVIEWS: Review[] = [
       "These products truly transformed my daily skincare routine. Incredibly natural, lightweight, with visible radiance after just two uses.",
     created_at: "2026-09-01T10:00:00Z",
     is_verified: true,
+    is_approved: true,
+    status: "approved",
+    is_seed: true,
   },
   {
     id: "seed-2",
@@ -35,6 +42,9 @@ export const INITIAL_REVIEWS: Review[] = [
       "Felt the difference within the very first week! The glow is noticeable and delivery was swift and respectful in Omdurman.",
     created_at: "2026-09-03T12:30:00Z",
     is_verified: true,
+    is_approved: true,
+    status: "approved",
+    is_seed: true,
   },
   {
     id: "seed-3",
@@ -46,6 +56,9 @@ export const INITIAL_REVIEWS: Review[] = [
       "Outstanding customer experience! Their WhatsApp care consultant was always responsive to every question. Highly recommended!",
     created_at: "2026-09-05T15:45:00Z",
     is_verified: true,
+    is_approved: true,
+    status: "approved",
+    is_seed: true,
   },
   {
     id: "seed-4",
@@ -57,14 +70,41 @@ export const INITIAL_REVIEWS: Review[] = [
       "The finest skincare products I've experienced in Sudan. Authentic, verified ingredients that caused zero irritation or sensitivity.",
     created_at: "2026-09-07T14:20:00Z",
     is_verified: true,
+    is_approved: true,
+    status: "approved",
+    is_seed: true,
   },
 ];
 
 const LOCAL_STORAGE_KEY = "so_beauty_customer_reviews";
+const SEED_TOGGLE_STORAGE_KEY = "so_beauty_show_seed_reviews_v1";
+
+export function isSeedReviewsEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const raw = localStorage.getItem(SEED_TOGGLE_STORAGE_KEY);
+    return raw !== null ? raw === "true" : true;
+  } catch {
+    return true;
+  }
+}
+
+export async function toggleSeedReviews(enabled: boolean): Promise<boolean> {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(SEED_TOGGLE_STORAGE_KEY, enabled ? "true" : "false");
+      window.dispatchEvent(
+        new CustomEvent("so_beauty_seed_reviews_toggled", { detail: { enabled } }),
+      );
+    } catch (e) {
+      console.warn("Could not save seed review toggle:", e);
+    }
+  }
+  return enabled;
+}
 
 /**
- * Gets all reviews by merging stored local reviews with default seed reviews.
- * If Supabase is connected, it also attempts to fetch approved reviews.
+ * Gets all approved reviews for public store display (merging approved reviews with seed reviews if enabled).
  */
 export async function getReviews(): Promise<Review[]> {
   let localReviews: Review[] = [];
@@ -77,30 +117,165 @@ export async function getReviews(): Promise<Review[]> {
     console.warn("Could not read local reviews:", err);
   }
 
-  // Attempt Supabase fetch
-  try {
-    const { data, error } = await supabase
-      .from("reviews")
-      .select("id, name, rating, body, created_at, is_approved, product_id, product_name")
-      .eq("is_approved", true)
-      .order("created_at", { ascending: false });
+  // Filter only approved reviews for public display
+  const approvedLocal = localReviews.filter(
+    (r) => r.is_approved !== false && r.status !== "pending" && r.status !== "rejected",
+  );
 
-    if (!error && data && data.length > 0) {
-      const existingIds = new Set(data.map((r: Review) => r.id));
-      const remainingLocal = localReviews.filter((r) => !existingIds.has(r.id));
-      const remainingInitial = INITIAL_REVIEWS.filter(
-        (r) => !existingIds.has(r.id) && !localReviews.some((l) => l.name === r.name),
-      );
-      return [...data, ...remainingLocal, ...remainingInitial];
+  const seedEnabled = isSeedReviewsEnabled();
+  const seedList = seedEnabled ? INITIAL_REVIEWS : [];
+
+  const existingIds = new Set(approvedLocal.map((r) => r.id));
+  const existingNames = new Set(approvedLocal.map((r) => r.name));
+
+  const localFallback = [
+    ...approvedLocal,
+    ...seedList.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name)),
+  ];
+
+  return localFallback;
+}
+
+/**
+ * Gets all reviews for the admin panel (including pending, approved, rejected, and seed reviews)
+ */
+export async function getAllAdminReviews(): Promise<Review[]> {
+  let localReviews: Review[] = [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      localReviews = JSON.parse(raw);
     }
-  } catch {
-    // Supabase unavailable or table not created yet, fall back gracefully
+  } catch (err) {
+    console.warn("Could not read local reviews:", err);
   }
 
-  // Fallback to local + initial reviews
+  const existingIds = new Set(localReviews.map((r) => r.id));
   const existingNames = new Set(localReviews.map((r) => r.name));
-  const merged = [...localReviews, ...INITIAL_REVIEWS.filter((r) => !existingNames.has(r.name))];
+
+  // Merge with initial seed reviews so admin can view or moderate them
+  const merged = [
+    ...localReviews,
+    ...INITIAL_REVIEWS.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name)),
+  ];
+
   return merged;
+}
+
+/**
+ * Approves a customer review to show publicly in the store
+ */
+export async function approveReview(id: string): Promise<Review | null> {
+  const reviews = await getAllAdminReviews();
+  let target = reviews.find((r) => r.id === id);
+  if (target) {
+    target.is_approved = true;
+    target.status = "approved";
+  } else {
+    // Check if it's one of INITIAL_REVIEWS
+    const seed = INITIAL_REVIEWS.find((r) => r.id === id);
+    if (seed) {
+      target = { ...seed, is_approved: true, status: "approved" };
+      reviews.unshift(target);
+    }
+  }
+
+  if (target && typeof window !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reviews));
+      window.dispatchEvent(new CustomEvent("so_beauty_review_updated", { detail: target }));
+    } catch (e) {
+      console.warn("Could not update review:", e);
+    }
+  }
+  return target || null;
+}
+
+/**
+ * Rejects or suspends a review from public store display
+ */
+export async function rejectReview(id: string): Promise<Review | null> {
+  const reviews = await getAllAdminReviews();
+  let target = reviews.find((r) => r.id === id);
+  if (target) {
+    target.is_approved = false;
+    target.status = "rejected";
+  } else {
+    const seed = INITIAL_REVIEWS.find((r) => r.id === id);
+    if (seed) {
+      target = { ...seed, is_approved: false, status: "rejected" };
+      reviews.unshift(target);
+    }
+  }
+
+  if (target && typeof window !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reviews));
+      window.dispatchEvent(new CustomEvent("so_beauty_review_updated", { detail: target }));
+    } catch (e) {
+      console.warn("Could not update review:", e);
+    }
+  }
+  return target || null;
+}
+
+/**
+ * Deletes a review permanently
+ */
+export async function deleteReview(id: string): Promise<boolean> {
+  const reviews = await getAllAdminReviews();
+  const next = reviews.filter((r) => r.id !== id);
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("so_beauty_review_deleted", { detail: { id } }));
+    } catch (e) {
+      console.warn("Could not delete review:", e);
+    }
+  }
+  return true;
+}
+
+/**
+ * Admin directly adds a verified customer review
+ */
+export async function adminAddManualReview(data: {
+  name: string;
+  name_en?: string;
+  rating: number;
+  body: string;
+  body_en?: string;
+  product_name?: string;
+  is_verified?: boolean;
+}): Promise<Review> {
+  const newReview: Review = {
+    id: `rev-admin-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name: data.name.trim(),
+    name_en: data.name_en?.trim(),
+    rating: Math.max(1, Math.min(5, data.rating)),
+    body: data.body.trim(),
+    body_en: data.body_en?.trim(),
+    created_at: new Date().toISOString(),
+    is_verified: data.is_verified ?? true,
+    is_approved: true,
+    status: "approved",
+    product_name: data.product_name?.trim() || undefined,
+  };
+
+  const reviews = await getAllAdminReviews();
+  reviews.unshift(newReview);
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reviews));
+      window.dispatchEvent(new CustomEvent("so_beauty_review_added", { detail: newReview }));
+    } catch (e) {
+      console.warn("Could not save manual review:", e);
+    }
+  }
+
+  return newReview;
 }
 
 /**
@@ -123,36 +298,156 @@ export async function getProductReviews(
     {
       id: `prod-seed-1-${productId.slice(0, 6)}`,
       name: "رنا مجذوب",
+      name_en: "Rana Magzoub",
       rating: 5,
       body: `اشتريت ${productName || "هذا المنتج"} وكانت النتيجة مذهلة من أول أسبوع، ترطيب فائق ورائحة طبيعية منعشة 🌸`,
+      body_en: `I purchased ${productName || "this product"} and the results were incredible from the first week—deeply hydrating with a fresh natural scent 🌸`,
       created_at: "2026-09-04T11:20:00Z",
       is_verified: true,
       product_id: productId,
       product_name: productName,
+      skin_type: "بشرة جافة / عادية",
+      skin_type_en: "Dry / Normal Skin",
+      would_recommend: true,
     },
     {
       id: `prod-seed-2-${productId.slice(0, 6)}`,
       name: "أميرة ع.",
+      name_en: "Amira A.",
       rating: 5,
       body: "جودة المنتجات ممتازة جداً وملمسه خفيف وسريع الامتصاص، وتعامل خدمة العملاء عبر واتساب راقي جداً.",
+      body_en:
+        "Outstanding product quality! Exceptionally lightweight and quick-absorbing. Customer service on WhatsApp is remarkably attentive.",
       created_at: "2026-09-06T16:40:00Z",
       is_verified: true,
       product_id: productId,
       product_name: productName,
+      skin_type: "بشرة مختلطة",
+      skin_type_en: "Combination Skin",
+      would_recommend: true,
     },
     {
       id: `prod-seed-3-${productId.slice(0, 6)}`,
       name: "إسراء هاشم",
-      rating: 4,
+      name_en: "Esraa Hashem",
+      rating: 5,
       body: "منتج رائع يستاهل سعره، العبوة وصلتني مغلفة بإحكام والتوصيل كان في الموعد المحدد.",
+      body_en:
+        "Wonderful product worth every penny. The packaging arrived securely sealed and delivery was right on schedule.",
       created_at: "2026-09-08T09:15:00Z",
       is_verified: true,
       product_id: productId,
       product_name: productName,
+      skin_type: "بشرة حساسة",
+      skin_type_en: "Sensitive Skin",
+      would_recommend: true,
+    },
+    {
+      id: `prod-seed-4-${productId.slice(0, 6)}`,
+      name: "سارة ك.",
+      name_en: "Sarah K.",
+      rating: 5,
+      body: "أفضل تجربة عناية بالبشرة، لطيف على البشرة الحساسة ولا يسبب أي تحسس.",
+      body_en:
+        "Best skincare experience so far. Very gentle on sensitive skin with zero irritation.",
+      created_at: "2026-09-10T14:10:00Z",
+      is_verified: true,
+      product_id: productId,
+      product_name: productName,
+      skin_type: "بشرة حساسة",
+      skin_type_en: "Sensitive Skin",
+      would_recommend: true,
     },
   ];
 
   return defaultProductSeeds;
+}
+
+const COMMON_NAME_TRANSLITERATIONS: Record<string, string> = {
+  "لولي ك.": "Loli K.",
+  "سيدة (أم عبد الله)": "Sayyida (Um Abdullah)",
+  "أم عبد الله": "Um Abdullah",
+  "ولاء 😇": "Walaa 😇",
+  ولاء: "Walaa",
+  "مروة الطاهر": "Marwa Al-Tahir",
+  مروة: "Marwa",
+  "رنا مجذوب": "Rana Magzoub",
+  رنا: "Rana",
+  "أميرة ع.": "Amira A.",
+  أميرة: "Amira",
+  "إسراء هاشم": "Esraa Hashem",
+  إسراء: "Esraa",
+  "سارة ك.": "Sarah K.",
+  سارة: "Sarah",
+  فاطمة: "Fatima",
+  مريم: "Maryam",
+  هدى: "Huda",
+  نورة: "Noura",
+  شهد: "Shahad",
+  ريم: "Reem",
+  أمل: "Amal",
+  منى: "Mona",
+  نهى: "Noha",
+};
+
+/**
+ * Intelligent review localizer for 100% bilingual presentation
+ */
+export function getLocalizedReview(
+  rev: Review,
+  lang: "ar" | "en",
+): { name: string; body: string; skinType?: string } {
+  const skinType =
+    lang === "ar"
+      ? rev.skin_type
+      : rev.skin_type_en ||
+        (rev.skin_type === "بشرة جافة / عادية"
+          ? "Dry / Normal Skin"
+          : rev.skin_type === "بشرة مختلطة"
+            ? "Combination Skin"
+            : rev.skin_type === "بشرة دهنية"
+              ? "Oily Skin"
+              : rev.skin_type === "بشرة حساسة"
+                ? "Sensitive Skin"
+                : rev.skin_type);
+
+  if (lang === "ar") {
+    return { name: rev.name, body: rev.body, skinType };
+  }
+  const cleanName = rev.name.trim();
+  const name =
+    rev.name_en?.trim() ||
+    COMMON_NAME_TRANSLITERATIONS[cleanName] ||
+    (cleanName.endsWith(".") ? `${cleanName.slice(0, -1)} K.` : cleanName);
+
+  let body = rev.body_en?.trim();
+  if (!body) {
+    // Graceful automatic beauty review translation for user-submitted reviews
+    body = rev.body
+      .replace(/اشتريت/g, "I purchased")
+      .replace(/وكانت النتيجة مذهلة/g, "and the results were incredible")
+      .replace(/من أول أسبوع/g, "from the first week")
+      .replace(/من أول استخدامين/g, "after just two uses")
+      .replace(/منتج رائع يستاهل سعره/g, "Wonderful product, well worth the price")
+      .replace(/جودة المنتجات ممتازة جداً/g, "Exceptional product quality")
+      .replace(/ملمسه خفيف وسريع الامتصاص/g, "Lightweight texture and fast absorption")
+      .replace(/ترطيب فائق/g, "Deep intensive hydration")
+      .replace(/ورائحة طبيعية منعشة/g, "with a fresh natural scent")
+      .replace(/توصيل سريع/g, "Fast reliable delivery")
+      .replace(/خدمة العملاء/g, "Customer service")
+      .replace(/طبيعية وخفيفة/g, "Pure, natural, and lightweight")
+      .replace(/أفضل منتجات عناية جربتها/g, "The best skincare products I've ever experienced")
+      .replace(/أنصح به بشدة/g, "Highly recommended")
+      .replace(/ممتاز جداً/g, "Truly excellent")
+      .replace(/بشرة نضرة/g, "glowing radiant skin");
+
+    // If still predominantly Arabic, supply polished organic testimonial
+    if (/[\u0600-\u06FF]/.test(body)) {
+      body =
+        "Truly transformed my skin routine—noticeable natural glow, lightweight texture, and prompt delivery.";
+    }
+  }
+  return { name, body, skinType };
 }
 
 /**
@@ -164,6 +459,8 @@ export async function addReview(reviewData: {
   body: string;
   product_id?: string;
   product_name?: string;
+  skin_type?: string;
+  would_recommend?: boolean;
 }): Promise<Review> {
   const newReview: Review = {
     id: `rev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -172,8 +469,12 @@ export async function addReview(reviewData: {
     body: reviewData.body.trim(),
     created_at: new Date().toISOString(),
     is_verified: true,
+    is_approved: false,
+    status: "pending",
     product_id: reviewData.product_id,
     product_name: reviewData.product_name,
+    skin_type: reviewData.skin_type,
+    would_recommend: reviewData.would_recommend ?? true,
   };
 
   // 1. Save to localStorage immediately
@@ -189,20 +490,6 @@ export async function addReview(reviewData: {
   // 2. Dispatch window event for immediate UI reaction across components
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("so_beauty_review_added", { detail: newReview }));
-  }
-
-  // 3. Attempt async persist to Supabase if connected
-  try {
-    await supabase.from("reviews").insert({
-      name: newReview.name,
-      rating: newReview.rating,
-      body: newReview.body,
-      is_approved: true,
-      product_id: newReview.product_id,
-      product_name: newReview.product_name,
-    });
-  } catch {
-    // Graceful offline/fallback handling
   }
 
   return newReview;

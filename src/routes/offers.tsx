@@ -3,8 +3,10 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SmartBackBar } from "@/components/SmartBackButton";
 import { ProductCard } from "@/components/ProductCard";
-import { listProducts } from "@/lib/products.functions";
+import { listProducts, attachMetadataToProduct } from "@/lib/products.functions";
+import { MOCK_PRODUCTS } from "@/lib/mock-products";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { Sparkles, Tag, ArrowRight, ArrowLeft } from "lucide-react";
@@ -12,20 +14,41 @@ import { Button } from "@/components/ui/button";
 
 const offersQuery = queryOptions({
   queryKey: ["products", "offers"],
-  queryFn: () => listProducts({ data: { category: "offer" } }),
+  queryFn: async () => {
+    const all = await listProducts({ data: {} });
+    return all.filter(
+      (p) =>
+        p.category === "offer" ||
+        (p.original_price != null && Number(p.original_price) > Number(p.price)),
+    );
+  },
 });
 
 export const Route = createFileRoute("/offers")({
   head: () => ({
     meta: [
-      { title: "العروض الحصرية والتخفيضات | Special Offers" },
+      { title: "العروض الحصرية والتخفيضات — أقوى توفير وجودة أصلية" },
       {
         name: "description",
         content: "أحدث العروض الحصرية والخصومات الخاصة لفترة محدودة بأعلى توفير وجودة أصلية.",
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(offersQuery),
+  loader: ({ context }) => {
+    // 1. Instant Cache Seeding for 0ms render
+    const cached = context.queryClient.getQueryData(["products", "offers"]);
+    if (!cached) {
+      const activeOfferMocks = MOCK_PRODUCTS.filter(
+        (p) =>
+          p.is_active &&
+          (p.category === "offer" ||
+            (p.original_price != null && Number(p.original_price) > Number(p.price))),
+      ).map(attachMetadataToProduct);
+      context.queryClient.setQueryData(["products", "offers"], activeOfferMocks);
+    }
+    // 2. Background revalidation
+    context.queryClient.prefetchQuery(offersQuery);
+  },
   component: OffersPage,
   errorComponent: ({ error }) => (
     <div className="p-8 text-center text-rose-600">{error.message}</div>
@@ -35,12 +58,19 @@ export const Route = createFileRoute("/offers")({
 
 function OffersPage() {
   const { settings } = useStoreSettings();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SiteHeader />
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        {/* Smart Back Navigation Bar */}
+        <SmartBackBar
+          label={language === "ar" ? "العودة للمتجر" : "Back to Store"}
+          badge={t("offers.title")}
+          fallbackTo="/"
+        />
+
         {/* Header Banner */}
         <div className="mb-8 md:mb-10 text-center sm:text-start">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
@@ -69,7 +99,7 @@ function OffersPage() {
 
 function OffersSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="rounded-2xl border border-border/60 bg-muted/20 p-3 animate-pulse">
           <div className="aspect-square rounded-xl bg-muted/60 mb-3" />
@@ -108,7 +138,7 @@ function OffersGrid() {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
       {data.map((p) => (
         <ProductCard key={p.id} product={p} />
       ))}

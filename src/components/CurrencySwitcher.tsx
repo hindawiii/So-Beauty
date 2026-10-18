@@ -1,9 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useCurrency, CURRENCIES, CurrencyCode } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { ChevronDown, Globe, Search, X } from "lucide-react";
 
-export function CurrencySwitcher() {
+interface CurrencySwitcherProps {
+  variant?: "default" | "topbar";
+  className?: string;
+}
+
+export function CurrencySwitcher({ variant = "default", className = "" }: CurrencySwitcherProps) {
   const { currency, setCurrency, currencyConfig } = useCurrency();
+  const { language, isRTL } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -91,22 +98,34 @@ export function CurrencySwitcher() {
     );
   });
 
+  const isTopbar = variant === "topbar";
+
   return (
-    <div className="relative inline-block text-start">
+    <div className={`relative inline-block text-start ${className}`}>
       <button
         ref={buttonRef}
         type="button"
         suppressHydrationWarning
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1 sm:gap-1.5 h-8 sm:h-9 px-2 sm:px-2.5 rounded-full text-xs font-semibold bg-muted/60 hover:bg-muted/90 text-slate-800 dark:text-slate-100 transition-all border border-border/60 hover:border-border cursor-pointer active:scale-95 shrink-0"
-        aria-label="تغيير العملة"
-        title={`تغيير العملة الحالية (${currencyConfig.nameAr})`}
+        className={
+          isTopbar
+            ? "inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[24px] sm:min-h-[26px] rounded-full text-[11px] font-bold bg-white/20 hover:bg-white/30 text-white border border-white/25 shadow-2xs transition-all cursor-pointer select-none shrink-0"
+            : "flex items-center gap-1 sm:gap-1.5 h-8 sm:h-9 px-2 sm:px-2.5 rounded-full text-xs font-semibold bg-muted/60 hover:bg-muted/90 text-slate-800 dark:text-slate-100 transition-all border border-border/60 hover:border-border cursor-pointer active:scale-95 shrink-0"
+        }
+        aria-label={isRTL ? "تغيير العملة" : "Change Currency"}
+        title={
+          isRTL
+            ? `تغيير العملة الحالية (${currencyConfig.nameAr})`
+            : `Change Currency (${currencyConfig.nameEn})`
+        }
       >
         <span
           suppressHydrationWarning
-          className="text-sm leading-none"
+          className="text-sm leading-none shrink-0"
           role="img"
-          aria-label={currencyConfig.country}
+          aria-label={
+            isRTL ? currencyConfig.country : currencyConfig.countryEn || currencyConfig.country
+          }
         >
           {currencyConfig.flag}
         </span>
@@ -117,7 +136,7 @@ export function CurrencySwitcher() {
           {currencyConfig.code}
         </span>
         <ChevronDown
-          className={`w-3 h-3 transition-transform duration-200 opacity-60 ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3 h-3 transition-transform duration-200 opacity-75 ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -128,15 +147,15 @@ export function CurrencySwitcher() {
             position: "fixed",
             top: `${coords.top}px`,
             left: coords.left !== undefined ? `${coords.left}px` : "auto",
-            width: "min(225px, calc(100vw - 24px))",
+            width: "min(235px, calc(100vw - 24px))",
           }}
           className="rounded-2xl bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl py-1.5 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
         >
-          {/* Header - Slim, Luxe, Exact Title 'عملات الدولة' */}
+          {/* Header - Slim, Luxe, Localized Title */}
           <div className="px-3 py-1.5 border-b border-border/50 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
               <Globe className="w-3.5 h-3.5 text-primary" />
-              <span>عملات الدولة</span>
+              <span>{isRTL ? "عملات الدول" : "Country Currencies"}</span>
             </div>
             <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
               {filteredCurrencies.length}
@@ -152,7 +171,7 @@ export function CurrencySwitcher() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث بالدولة أو الرمز..."
+                placeholder={isRTL ? "ابحث بالدولة أو الرمز..." : "Search country or currency..."}
                 className="w-full bg-muted/50 text-[11px] text-foreground placeholder:text-muted-foreground/70 rounded-lg ps-7 pe-6 py-1 outline-none border border-border/40 focus:border-primary/50 transition-colors"
               />
               {search && (
@@ -160,7 +179,7 @@ export function CurrencySwitcher() {
                   type="button"
                   onClick={() => setSearch("")}
                   className="absolute end-1.5 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
-                  aria-label="مسح البحث"
+                  aria-label={isRTL ? "مسح البحث" : "Clear search"}
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -172,12 +191,15 @@ export function CurrencySwitcher() {
           <div className="max-h-64 overflow-y-auto py-1 divide-y divide-border/20 overscroll-contain">
             {filteredCurrencies.length === 0 ? (
               <div className="py-3 text-center text-xs text-muted-foreground">
-                لا توجد عملة تطابق بحثك
+                {isRTL ? "لا توجد عملة تطابق بحثك" : "No currencies match your search"}
               </div>
             ) : (
               filteredCurrencies.map((code) => {
                 const item = CURRENCIES[code];
                 const isSelected = item.code === currency;
+                const countryLabel =
+                  language === "ar" ? item.country : item.countryEn || item.country;
+                const symbolLabel = language === "ar" ? item.symbolAr : item.symbolEn;
 
                 return (
                   <button
@@ -198,22 +220,22 @@ export function CurrencySwitcher() {
                       <span
                         className="text-base leading-none shrink-0"
                         role="img"
-                        aria-label={item.country}
+                        aria-label={countryLabel}
                       >
                         {item.flag}
                       </span>
                       <span className="font-semibold text-xs text-foreground truncate">
-                        {item.country}
+                        {countryLabel}
                       </span>
                     </div>
 
-                    {/* Currency Code & Symbol Badge - Tightened safe spacing */}
+                    {/* Currency Code & Symbol Badge */}
                     <div className="flex items-center gap-1 shrink-0 ms-2">
                       <span className="text-[11px] font-mono font-bold text-primary/90">
                         {item.code}
                       </span>
                       <span className="text-[9px] text-muted-foreground font-medium">
-                        ({item.symbolAr})
+                        ({symbolLabel})
                       </span>
                       {isSelected && (
                         <span className="text-primary text-[10px] font-bold bg-primary/20 w-4 h-4 rounded-full flex items-center justify-center ms-0.5">

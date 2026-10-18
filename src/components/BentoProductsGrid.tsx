@@ -38,15 +38,18 @@ export function BentoProductsGrid({ products }: BentoProductsGridProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Large Hero Bento Card (Span 7 cols) */}
         {heroProduct && (
-          <div className="lg:col-span-7 group relative bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-3xl p-6 md:p-8 border border-primary/20 overflow-hidden flex flex-col justify-between min-h-[380px] shadow-sm hover:shadow-md transition-all">
+          <div
+            id={`product-${heroProduct.id}`}
+            className="lg:col-span-7 group relative bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-3xl p-6 md:p-8 border border-primary/20 overflow-hidden flex flex-col justify-between min-h-[380px] shadow-sm hover:shadow-md transition-all"
+          >
             <div className="relative z-10 max-w-md">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-[11px] font-extrabold tracking-wide uppercase px-3 py-1 rounded-full bg-primary text-primary-foreground shadow-xs flex items-center gap-1.5">
+                <span className="text-xs font-extrabold tracking-wide uppercase px-3 py-1 rounded-full bg-primary text-primary-foreground shadow-xs flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>المنتج الأكثر طلباً · Hero Pick</span>
                 </span>
                 {heroProduct.category && (
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-background/80 text-muted-foreground border border-border/60">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-background/80 text-muted-foreground border border-border/60">
                     {heroProduct.category}
                   </span>
                 )}
@@ -85,6 +88,14 @@ export function BentoProductsGrid({ products }: BentoProductsGridProps) {
                 <Link
                   to="/products/$id"
                   params={{ id: heroProduct.id }}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("so_beauty_last_product_id", heroProduct.id);
+                      const urlKey = window.location.pathname + window.location.search;
+                      sessionStorage.setItem(`so_beauty_scroll_${urlKey}`, String(window.scrollY));
+                      sessionStorage.setItem("so_beauty_last_page", urlKey);
+                    }
+                  }}
                   className="h-11 px-4 rounded-xl border border-border/80 bg-background/60 hover:bg-background text-xs md:text-sm font-bold inline-flex items-center gap-1.5 transition-colors"
                 >
                   <span>التفاصيل</span>
@@ -110,7 +121,7 @@ export function BentoProductsGrid({ products }: BentoProductsGridProps) {
           {sideProduct1 && (
             <div className="group relative bg-card rounded-2xl p-5 border border-border/80 overflow-hidden flex items-center justify-between shadow-2xs hover:shadow-xs hover:border-primary/40 transition-all">
               <div className="max-w-[60%] space-y-1.5">
-                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md inline-block">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-md inline-block">
                   عناية مركزة
                 </span>
                 <h4 className="text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
@@ -150,7 +161,7 @@ export function BentoProductsGrid({ products }: BentoProductsGridProps) {
           {sideProduct2 && (
             <div className="group relative bg-card rounded-2xl p-5 border border-border/80 overflow-hidden flex items-center justify-between shadow-2xs hover:shadow-xs hover:border-primary/40 transition-all">
               <div className="max-w-[60%] space-y-1.5">
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md inline-block">
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2.5 py-0.5 rounded-md inline-block">
                   تفتيح طبيعي
                 </span>
                 <h4 className="text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
@@ -200,7 +211,7 @@ export function BentoProductsGrid({ products }: BentoProductsGridProps) {
               </span>
             </h4>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
             {restProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

@@ -3,12 +3,28 @@ import { useLanguage } from "@/context/LanguageContext";
 import { Globe } from "lucide-react";
 
 interface LanguageSwitcherProps {
-  variant?: "header" | "drawer" | "compact";
+  variant?: "header" | "drawer" | "compact" | "topbar";
   className?: string;
 }
 
 export function LanguageSwitcher({ variant = "header", className = "" }: LanguageSwitcherProps) {
-  const { language, setLanguage, isRTL } = useLanguage();
+  const { language, setLanguage, toggleLanguage, isRTL } = useLanguage();
+
+  if (variant === "topbar") {
+    const isAr = language === "ar";
+    const nextLangCode = isAr ? "EN" : "AR";
+    return (
+      <button
+        type="button"
+        onClick={toggleLanguage}
+        className={`inline-flex items-center justify-center min-w-[32px] h-6.5 sm:h-7 px-2.5 rounded-full font-mono font-bold text-xs tracking-wider bg-white/20 hover:bg-white/35 active:scale-90 text-white border border-white/25 shadow-2xs transition-all cursor-pointer shrink-0 select-none ${className}`}
+        title={isAr ? "Switch to English (EN)" : "التحويل إلى اللغة العربية (AR)"}
+        aria-label={isAr ? "Switch to English" : "التبديل إلى اللغة العربية"}
+      >
+        <span>{nextLangCode}</span>
+      </button>
+    );
+  }
 
   if (variant === "drawer") {
     return (
@@ -18,7 +34,9 @@ export function LanguageSwitcher({ variant = "header", className = "" }: Languag
             <Globe className="w-3.5 h-3.5 text-primary" />
             <span>{isRTL ? "لغة المتجر" : "Store Language"}</span>
           </span>
-          <span className="text-[11px] font-mono text-slate-400 uppercase">{language}</span>
+          <span className="text-xs font-mono text-slate-600 dark:text-slate-300 font-bold uppercase">
+            {language}
+          </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -59,10 +77,10 @@ export function LanguageSwitcher({ variant = "header", className = "" }: Languag
       <button
         type="button"
         onClick={() => setLanguage("ar")}
-        className={`px-2 py-1 rounded-full font-bold transition-all cursor-pointer select-none text-[11px] min-h-[30px] flex items-center justify-center ${
+        className={`px-2.5 py-1 rounded-full font-bold transition-all cursor-pointer select-none text-xs min-h-[32px] flex items-center justify-center ${
           language === "ar"
             ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-            : "text-slate-500 hover:text-slate-800"
+            : "text-slate-600 hover:text-slate-900"
         }`}
         title="التبديل إلى اللغة العربية"
         aria-label="Switch to Arabic"
@@ -72,10 +90,10 @@ export function LanguageSwitcher({ variant = "header", className = "" }: Languag
       <button
         type="button"
         onClick={() => setLanguage("en")}
-        className={`px-2 py-1 rounded-full font-bold transition-all cursor-pointer select-none text-[11px] min-h-[30px] flex items-center justify-center ${
+        className={`px-2.5 py-1 rounded-full font-bold transition-all cursor-pointer select-none text-xs min-h-[32px] flex items-center justify-center ${
           language === "en"
             ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-            : "text-slate-500 hover:text-slate-800"
+            : "text-slate-600 hover:text-slate-900"
         }`}
         title="Switch to English"
         aria-label="Switch to English"

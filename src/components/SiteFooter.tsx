@@ -17,6 +17,7 @@ import {
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { getLocalizedSetting } from "@/lib/product-localization";
+import { PaymentWalletsBadges } from "@/components/PaymentWalletsBadges";
 
 export function SiteFooter() {
   const { settings } = useStoreSettings();
@@ -27,7 +28,7 @@ export function SiteFooter() {
     { to: "/", label: t("nav.home"), Icon: Home },
     { to: "/products", label: isRTL ? "تصفح الكتالوج بالكامل" : "Browse All Catalog", Icon: Store },
     { to: "/products", label: t("nav.skinCare"), Icon: Sparkles },
-    { to: "/products", label: t("nav.offers"), Icon: Truck },
+    { to: "/offers", label: t("nav.offers"), Icon: Truck },
   ] as const;
 
   // Column 3: Customer Care, Delivery & Trust
@@ -95,20 +96,34 @@ export function SiteFooter() {
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <>
+                <div className="flex flex-col justify-center text-start">
                   <h3
-                    className="text-2xl font-bold text-primary tracking-tight"
-                    style={{ fontFamily: "var(--font-latin)" }}
+                    className="text-2xl font-black text-primary tracking-tight leading-none"
+                    style={{
+                      fontFamily:
+                        language === "ar"
+                          ? "var(--font-brand-arabic), 'El Messiri', serif"
+                          : "var(--font-latin), 'Playfair Display', serif",
+                    }}
                   >
-                    {settings.storeName.split("-")[1]?.trim() || "So Beauty"}
+                    {language === "ar"
+                      ? settings.storeName.split("-")[0]?.trim() || "سو بيوتي"
+                      : settings.storeName_en || "So Beauty"}
                   </h3>
                   <p
-                    className="text-[11px] text-muted-foreground mt-0.5"
-                    style={{ fontFamily: "var(--font-display)" }}
+                    className="text-[11px] font-bold text-slate-700 mt-1"
+                    style={{
+                      fontFamily:
+                        language === "ar"
+                          ? "var(--font-latin), 'Playfair Display', serif"
+                          : "var(--font-brand-arabic), 'El Messiri', serif",
+                    }}
                   >
-                    {settings.tagline || "سو بيوتي · عناية طبيعية"}
+                    {language === "ar"
+                      ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
+                      : settings.tagline_en || "Pure Botanical Care"}
                   </p>
-                </>
+                </div>
               )}
             </div>
 
@@ -211,7 +226,7 @@ export function SiteFooter() {
             </ul>
 
             <div className="mt-5 sm:mt-6">
-              <span className="text-[11px] text-white/70 block mb-2 font-medium">
+              <span className="text-xs text-white/90 block mb-2 font-semibold">
                 {t("footer.followSocial")}
               </span>
               <div className="flex gap-3 justify-center sm:justify-start">
@@ -235,15 +250,30 @@ export function SiteFooter() {
         </div>
       </div>
 
+      {/* Official Payment Methods & Digital Wallets Trust Bar */}
+      <div className="border-t border-white/15 py-5 sm:py-6 px-4 relative bg-black/20">
+        <div className="container mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-3.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold text-white/95 uppercase tracking-wider">
+              {isRTL
+                ? "طرق الدفع والمحافظ الرقمية المعتمدة"
+                : "Verified Payment Methods & Digital Wallets"}
+            </span>
+          </div>
+          <PaymentWalletsBadges variant="footer" />
+        </div>
+      </div>
+
       {/* Bottom Sub-Bar: Copyright & Payment Security */}
       <div className="border-t border-white/15 py-5 px-4 relative bg-black/10">
-        <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-start text-xs text-white/80">
+        <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-start text-xs sm:text-sm text-white/95 font-medium">
           <p>
             © {new Date().getFullYear()}{" "}
             {settings.storeName || (isRTL ? "المتجر الإلكتروني" : "Online Store")}.{" "}
             {isRTL ? "جميع الحقوق محفوظة." : "All rights reserved."}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-white/70">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-white/85 font-medium">
             <Link
               to="/privacy"
               className="hover:text-white transition-colors underline-offset-4 hover:underline"

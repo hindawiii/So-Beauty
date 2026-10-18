@@ -235,12 +235,12 @@ export function ProductQualityAdvisor({
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <span>مستشار العرض الاحترافي للمنتج</span>
               <span
-                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${gradeColor}`}
+                className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full border ${gradeColor}`}
               >
                 {grade} ({score}%)
               </span>
             </h4>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               مؤشر ذكي يضمن تقديم منتجك للعملاء بأعلى جاذبية ومعدل تحويل
             </p>
           </div>
@@ -248,7 +248,7 @@ export function ProductQualityAdvisor({
 
         {/* Progress Bar */}
         <div className="w-full sm:w-36 space-y-1">
-          <div className="flex justify-between text-[11px] font-mono font-bold text-muted-foreground">
+          <div className="flex justify-between text-xs font-mono font-bold text-muted-foreground">
             <span>اكتمال المعايير</span>
             <span>{score}/100</span>
           </div>
@@ -269,7 +269,7 @@ export function ProductQualityAdvisor({
             <span>فحص جودة وملاءمة الصورة:</span>
           </span>
           <span
-            className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+            className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
               imageState.rating === "ممتازة HD"
                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
                 : imageState.rating === "مقبولة"
@@ -286,11 +286,11 @@ export function ProductQualityAdvisor({
         <p className="text-xs text-muted-foreground leading-relaxed">{imageState.message}</p>
 
         {imageState.dimensions && (
-          <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-muted-foreground font-mono">
-            <span className="bg-background px-2 py-0.5 rounded border border-border/60">
+          <div className="flex flex-wrap gap-2 pt-1 text-xs text-muted-foreground font-mono font-medium">
+            <span className="bg-background px-2.5 py-0.5 rounded border border-border/60">
               الأبعاد: {imageState.dimensions.width} × {imageState.dimensions.height} بكسل
             </span>
-            <span className="bg-background px-2 py-0.5 rounded border border-border/60">
+            <span className="bg-background px-2.5 py-0.5 rounded border border-border/60">
               نسبة العرض: {imageState.aspectRatio}
             </span>
           </div>

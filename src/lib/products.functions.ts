@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { requireAdminGuard } from "./admin-auth";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/types/database.types";
 import { MOCK_PRODUCTS } from "./mock-products";
 import {
   encodeProductGallery,
@@ -10,7 +9,7 @@ import {
 } from "./product-images";
 import { encodeProductI18n, extractProductI18n } from "./product-localization";
 
-function attachMetadataToProduct(p: Product): Product {
+export function attachMetadataToProduct(p: Product): Product {
   const gallery = extractProductGallery(p);
   const i18n = extractProductI18n(p);
   return {
@@ -22,21 +21,11 @@ function attachMetadataToProduct(p: Product): Product {
 }
 
 function serverClient() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  try {
-    return createClient<Database>(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-    });
-  } catch (err) {
-    console.warn("[Products] Failed to create Supabase client:", err);
-    return null;
-  }
+  return null;
 }
 
 export const listProducts = createServerFn({ method: "GET" })
-  .inputValidator((data: { category?: string } | undefined) => data ?? {})
+  .validator((data: { category?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
     const sb = serverClient();
     if (sb) {
@@ -65,7 +54,7 @@ export const listProducts = createServerFn({ method: "GET" })
   });
 
 export const getProduct = createServerFn({ method: "GET" })
-  .inputValidator((data: { id: string }) => data)
+  .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
     const sb = serverClient();
     if (sb) {
@@ -92,7 +81,7 @@ export const getProduct = createServerFn({ method: "GET" })
  * Admin: List all products (active and inactive) for inventory management
  */
 export const adminListAllProducts = createServerFn({ method: "GET" })
-  .inputValidator((data: { adminPin?: string } | undefined) => data ?? {})
+  .validator((data: { adminPin?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
     await requireAdminGuard(data?.adminPin);
 
@@ -117,7 +106,7 @@ export const adminListAllProducts = createServerFn({ method: "GET" })
  * Admin: Update product details (stock, price, is_active, is_featured)
  */
 export const adminUpdateProduct = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (data: {
       id: string;
       stock?: number;
@@ -168,7 +157,7 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
  * Admin: Create a new product with complete details
  */
 export const adminCreateProduct = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (data: {
       name: string;
       name_en?: string | null;
@@ -261,7 +250,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
  * Admin: Full Update of any product details
  */
 export const adminFullUpdateProduct = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (data: {
       id: string;
       name: string;
@@ -403,7 +392,7 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
  * Admin: Duplicate existing product
  */
 export const adminDuplicateProduct = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; adminPin?: string }) => data)
+  .validator((data: { id: string; adminPin?: string }) => data)
   .handler(async ({ data }) => {
     await requireAdminGuard(data.adminPin);
 
@@ -454,7 +443,7 @@ export const adminDuplicateProduct = createServerFn({ method: "POST" })
  * Admin: Delete / Remove a product
  */
 export const adminDeleteProduct = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; adminPin?: string }) => data)
+  .validator((data: { id: string; adminPin?: string }) => data)
   .handler(async ({ data }) => {
     await requireAdminGuard(data.adminPin);
 

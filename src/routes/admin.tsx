@@ -72,7 +72,9 @@ import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { StoreThemingTab } from "@/components/StoreThemingTab";
 import { AdminPinManagerCard } from "@/components/AdminPinManagerCard";
 import { AdminLocalizationStudioTab } from "@/components/AdminLocalizationStudioTab";
-import { Palette, Settings, Globe2 } from "lucide-react";
+import { AdminReviewsManagerTab } from "@/components/AdminReviewsManagerTab";
+import { HomepageSectionsBuilder } from "@/components/HomepageSectionsBuilder";
+import { Palette, Settings, Globe2, LayoutTemplate } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -133,7 +135,7 @@ const STATUS_CONFIG: Record<
 function AdminDashboardPage() {
   const { settings } = useStoreSettings();
   const [activeTab, setActiveTab] = useState<
-    "orders" | "inventory" | "localization" | "theming" | "settings"
+    "orders" | "inventory" | "reviews" | "sections" | "localization" | "theming" | "settings"
   >("orders");
 
   // Admin PIN Gate State
@@ -742,7 +744,11 @@ function AdminDashboardPage() {
           </div>
 
           {/* Average Rating & Reviews */}
-          <div className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between sm:col-span-2 md:col-span-1">
+          <div
+            onClick={() => setActiveTab("reviews")}
+            className="bg-card border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between sm:col-span-2 md:col-span-1 cursor-pointer hover:border-amber-300 hover:shadow-sm transition-all"
+            title="انقر لفتح وإدارة تقييمات وآراء العملاء"
+          >
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500 mb-1 truncate">
                 متوسط تقييمات المتجر
@@ -753,8 +759,8 @@ function AdminDashboardPage() {
                 </h3>
                 <span className="text-xs text-amber-500 font-bold">★ / 5</span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 truncate">
-                بناءً على {reviewsCount} مراجعة
+              <p className="text-[11px] text-amber-600 mt-1 truncate font-medium">
+                بناءً على {reviewsCount} مراجعة (إدارة)
               </p>
             </div>
             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 ms-2">
@@ -789,6 +795,32 @@ function AdminDashboardPage() {
           >
             <Package className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>المنتجات والمخزون ({products.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("reviews")}
+            className={`flex-1 min-w-[145px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+              activeTab === "reviews"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <Star className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" />
+            <span>آراء العملاء ({reviewsCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("sections")}
+            className={`flex-1 min-w-[160px] min-h-[44px] flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+              activeTab === "sections"
+                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white"
+            }`}
+          >
+            <LayoutTemplate className="w-4 h-4 text-primary shrink-0" />
+            <span>🧩 تخصيص وبناء الواجهة</span>
           </button>
 
           <button
@@ -1852,6 +1884,20 @@ function AdminDashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 2.3: CUSTOMER REVIEWS MODERATION */}
+        {activeTab === "reviews" && (
+          <div className="animate-in fade-in duration-200">
+            <AdminReviewsManagerTab />
+          </div>
+        )}
+
+        {/* TAB 2.4: HOMEPAGE SECTIONS BUILDER & MODULAR ORDER */}
+        {activeTab === "sections" && (
+          <div className="animate-in fade-in duration-200">
+            <HomepageSectionsBuilder />
           </div>
         )}
 

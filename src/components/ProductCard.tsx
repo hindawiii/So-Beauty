@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ShoppingCart,
   Heart,
@@ -40,6 +41,7 @@ export interface ProductCardProduct {
 
 export function ProductCard({ product }: { product: ProductCardProduct }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { settings } = useStoreSettings();
   const { language, t } = useLanguage();
   const { add } = useCart();
@@ -50,6 +52,11 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const isWished = isInWishlist(product.id);
+
+  // Prime cache for instant 0ms transition when user hovers or taps
+  const primeProductData = () => {
+    queryClient.setQueryData(["product", product.id], (prev: unknown) => prev ?? product);
+  };
 
   // Localized product name, category, and description
   const displayName = useMemo(
@@ -164,11 +171,21 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
     if (target && target.closest("button, a, input, select, textarea")) {
       return;
     }
+    // Synchronously capture exact spatial anchor and scroll position before navigating
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("so_beauty_last_product_id", product.id);
+      const urlKey = window.location.pathname + window.location.search;
+      sessionStorage.setItem(`so_beauty_scroll_${urlKey}`, String(window.scrollY));
+      sessionStorage.setItem("so_beauty_last_page", urlKey);
+    }
+    primeProductData();
     navigate({ to: "/products/$id", params: { id: product.id } });
   };
 
   return (
     <div
+      onMouseEnter={primeProductData}
+      onPointerDown={primeProductData}
       className={`relative w-full h-full ${
         isFlipEnabled ? `flip-card-container ${isFlipped ? "is-flipped" : ""}` : ""
       }`}
@@ -182,28 +199,32 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
       >
         {/* ================= FRONT CARD FACE ================= */}
         <article
+          id={`product-${product.id}`}
           onClick={handleCardClick}
           className={`group bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/70 hover:border-primary/30 transition-all duration-300 flex flex-col h-full relative cursor-pointer ${cardMotionClass} ${
             isFlipEnabled ? "flip-card-front w-full" : ""
           }`}
         >
-          {/* Product Image Area - With In-Card Slider & Quick Peek */}
+          {/* Product Image Area - Natural Full Silhouette Stage */}
           <div
-            className="relative aspect-[4/4.5] sm:aspect-square bg-muted/40 overflow-hidden shrink-0 cursor-pointer select-none"
+            className="relative aspect-[4/4.5] sm:aspect-square bg-white dark:bg-slate-900/40 overflow-hidden shrink-0 cursor-pointer select-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
             <Link
               to="/products/$id"
               params={{ id: product.id }}
-              className="block w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 text-start"
+              preload="intent"
+              onMouseEnter={primeProductData}
+              onPointerDown={primeProductData}
+              className="block w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 text-start flex items-center justify-center p-2 sm:p-2.5"
               aria-label={`عرض تفاصيل ${product.name}`}
             >
               <img
                 src={galleryImages[currentImgIndex] || resolveProductImage(product.image_url)}
                 alt={`${product.name} - زاوية ${currentImgIndex + 1}`}
-                className={`w-full h-full object-cover transition-transform duration-500 ease-out ${
-                  isOutOfStock ? "grayscale opacity-75" : "group-hover:scale-106"
+                className={`w-full h-full object-contain transition-transform duration-500 ease-out ${
+                  isOutOfStock ? "grayscale opacity-75" : "group-hover:scale-104"
                 }`}
                 loading="lazy"
               />
@@ -211,8 +232,8 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
 
             {/* In-Card Multi-Angle Indicator Badge (Shown ONLY if merchant configured multiple angles) */}
             {hasMultipleImages && (
-              <span className="absolute top-2 start-2 z-10 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-xs pointer-events-none transition-opacity">
-                <Layers className="w-2.5 h-2.5 text-primary-foreground" />
+              <span className="absolute top-2 start-2 z-10 text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-900/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-xs pointer-events-none transition-opacity">
+                <Layers className="w-3 h-3 text-primary-foreground" />
                 <span>
                   {currentImgIndex + 1}/{galleryImages.length}
                 </span>
@@ -266,10 +287,10 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
             <button
               type="button"
               onClick={handleWishlistToggle}
-              className={`absolute top-2 end-2 z-10 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all backdrop-blur-md shadow-xs cursor-pointer ${
+              className={`absolute top-2 end-2 z-10 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all shadow-xs cursor-pointer ${
                 isWished
                   ? "bg-rose-500 text-white hover:bg-rose-600 scale-105"
-                  : "bg-white/85 dark:bg-slate-900/85 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 hover:text-rose-500 hover:scale-105"
+                  : "bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 hover:text-rose-500 hover:scale-105"
               }`}
               aria-label={
                 isWished
@@ -289,7 +310,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
               <button
                 type="button"
                 onClick={toggleFlip}
-                className="absolute bottom-2.5 end-2.5 z-10 h-7 px-2.5 rounded-full bg-slate-900/85 hover:bg-slate-900 text-white text-[11px] font-medium flex items-center gap-1 shadow-md transition-all cursor-pointer backdrop-blur-xs"
+                className="absolute bottom-2.5 end-2.5 z-10 h-7 px-2.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white text-[11px] font-medium flex items-center gap-1 shadow-md transition-all cursor-pointer"
                 title={t("common.quickSpecs")}
               >
                 <RotateCw className="w-3 h-3 text-amber-300" />
@@ -299,20 +320,20 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
 
             {/* Discount Badge - Prominent Red Mini Badge */}
             {original && original > price && (
-              <span className="absolute top-2 start-2 z-10 bg-red-600 text-white text-[10px] sm:text-[11px] font-bold tracking-tight px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-full shadow-xs border border-red-500/40 pointer-events-none">
+              <span className="absolute top-2 start-2 z-10 bg-rose-600 text-white text-[11px] sm:text-xs font-bold tracking-tight px-2 py-0.5 rounded-md sm:rounded-full shadow-xs border border-rose-500/50 pointer-events-none">
                 {language === "ar"
-                  ? `خصم ${Math.round(((original - price) / original) * 100)}%`
+                  ? `خ${Math.round(((original - price) / original) * 100)}%`
                   : `-${Math.round(((original - price) / original) * 100)}%`}
               </span>
             )}
 
             {/* Stock Status Badge */}
             {isOutOfStock ? (
-              <span className="absolute bottom-2 start-2 z-10 bg-slate-900/90 text-white text-[9px] sm:text-[10px] font-medium px-2 py-0.5 rounded-md shadow-xs pointer-events-none">
+              <span className="absolute bottom-2 start-2 z-10 bg-slate-900 text-white text-xs font-bold px-2.5 py-0.5 rounded-md shadow-xs pointer-events-none">
                 {t("common.outOfStock")}
               </span>
             ) : stock !== null && stock <= 5 ? (
-              <span className="absolute bottom-2 start-2 z-10 bg-amber-600/95 text-white text-[9px] sm:text-[10px] font-medium px-2 py-0.5 rounded-md shadow-xs pointer-events-none">
+              <span className="absolute bottom-2 start-2 z-10 bg-amber-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-md shadow-xs pointer-events-none">
                 {t("common.remainingOnly")} {stock} {t("common.piecesOnly")}
               </span>
             ) : null}
@@ -321,29 +342,32 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
           {/* Product Content Section */}
           <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between text-start gap-1.5 sm:gap-2">
             <div>
-              {/* Category Micro Chip */}
+              {/* Category Micro Chip with Distinct Badge Styling & Safe Margin */}
               {displayCategory && (
-                <div className="mb-1">
-                  <span className="text-[10px] font-medium text-muted-foreground truncate block">
+                <div className="mb-2 sm:mb-2.5">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-primary/10 dark:bg-primary/20 text-primary text-xs font-medium border border-primary/20 truncate max-w-full tracking-normal">
                     {displayCategory}
                   </span>
                 </div>
               )}
 
-              {/* Product Name */}
+              {/* Product Name with Relaxed Leading and Safe Space */}
               <Link
                 to="/products/$id"
                 params={{ id: product.id }}
+                preload="intent"
+                onMouseEnter={primeProductData}
+                onPointerDown={primeProductData}
                 className="block group-hover:text-primary transition-colors"
               >
-                <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 leading-snug sm:leading-relaxed text-foreground min-h-[2rem] sm:min-h-[2.5rem]">
+                <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 leading-relaxed text-slate-900 dark:text-slate-100 min-h-[2.4rem] sm:min-h-[2.8rem]">
                   {displayName}
                 </h3>
               </Link>
             </div>
 
-            {/* Price & Action Area */}
-            <div className="pt-2 mt-auto border-t border-border/40 flex items-center justify-between gap-1.5">
+            {/* Price & Action Area with Safe Separation Margin */}
+            <div className="pt-2.5 sm:pt-3 mt-auto border-t border-border/40 flex items-center justify-between gap-1.5">
               {/* Price Block */}
               <div className="flex flex-col min-w-0" suppressHydrationWarning>
                 <div
@@ -359,7 +383,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
                   {formattedOriginal && (
                     <span
                       suppressHydrationWarning
-                      className="text-[11px] sm:text-xs text-muted-foreground/80 font-medium inline-block line-through decoration-slate-400/90 dark:decoration-slate-500/90 decoration-[1.5px] leading-normal"
+                      className="text-xs text-slate-600 dark:text-slate-300 font-bold inline-block line-through decoration-slate-600 dark:decoration-slate-300 decoration-[1.5px] leading-normal"
                     >
                       {formattedOriginal}
                     </span>
@@ -368,7 +392,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
                 {secondaryPrice && (
                   <span
                     suppressHydrationWarning
-                    className="hidden sm:inline-block text-[9px] text-muted-foreground font-mono mt-0.5 leading-none truncate"
+                    className="hidden sm:inline-block text-xs text-slate-700 dark:text-slate-300 font-mono mt-0.5 leading-none truncate font-semibold"
                   >
                     {secondaryPrice}
                   </span>
