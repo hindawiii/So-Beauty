@@ -90,14 +90,16 @@ function Index() {
   const heroTitle = getLocalizedSetting(
     settings.heroTitle,
     language,
-    language === "ar" ? "جمالكِ الطبيعي يبدأ من هنا" : "Your Natural Beauty Starts Here",
+    language === "ar"
+      ? "نقاء الطبيعة، وفخامة العناية التي تليق بنضارتكِ"
+      : "Pure Botanical Care for Your Radiant Skin",
   );
   const heroSubtitle = getLocalizedSetting(
     settings.heroSubtitle,
     language,
     language === "ar"
-      ? `اكتشفي تشكيلة ${settings.storeName || "سو بيوتي"} من أفضل المنتجات الأصلية بجودة معتمدة وخدمة سريعة.`
-      : `Explore ${settings.storeName_en || "So Beauty"} collection of certified skincare and fast door-to-door delivery.`,
+      ? "مستخلصات عشبية وزيوت أصلية 100% لبشرة نضرة وصحية — جودة معتمدة ودفع عند الاستلام."
+      : "100% pure botanical formulas and certified skincare crafted for lasting radiance with fast delivery.",
   );
   const heroPrimaryCta =
     getLocalizedSetting(settings.heroPrimaryCtaText, language, settings.heroPrimaryCtaText_en) ||
@@ -206,14 +208,21 @@ function Index() {
                 <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
                   {heroSubtitle}
                 </p>
-                <div className="flex gap-3 flex-wrap">
-                  <Link to="/products">
-                    <Button size="lg" className="shadow-sm">
+                <div className="flex flex-row items-center gap-2.5 sm:gap-3.5 w-full max-w-md">
+                  <Link to="/products" className="flex-1">
+                    <Button
+                      size="lg"
+                      className="w-full shadow-xs rounded-xl font-bold text-xs sm:text-sm h-11 sm:h-12 cursor-pointer"
+                    >
                       {heroPrimaryCta}
                     </Button>
                   </Link>
-                  <Link to="/offers">
-                    <Button size="lg" variant="outline">
+                  <Link to="/offers" className="flex-1">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full rounded-xl font-semibold text-xs sm:text-sm h-11 sm:h-12 border-primary/30 hover:bg-primary/5 cursor-pointer"
+                    >
                       {heroSecondaryCta}
                     </Button>
                   </Link>
@@ -456,39 +465,8 @@ function Index() {
         return <LuxeBundlesCarousel key="bundles" />;
 
       case "promo_banner":
-        if (!settings.promoTitle && !settings.promoImageUrl) return null;
-        return (
-          <section key="promo_banner" className="container mx-auto px-4 py-8">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
-              <div className="max-w-xl text-start">
-                <span className="text-xs font-bold text-primary px-3 py-1 rounded-full bg-primary/15 inline-block mb-3">
-                  {language === "ar" ? "عرض حصري مميز" : "Special Spotlight"}
-                </span>
-                <h3 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mb-2">
-                  {settings.promoTitle || "عروض التوفير الكبرى"}
-                </h3>
-                <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 mb-5 leading-relaxed">
-                  {settings.promoSubtitle || "خصومات وباقات مختارة بعناية لأجود المنتجات الأصلية."}
-                </p>
-                <Link to={settings.promoCtaLink || "/offers"}>
-                  <Button size="lg" className="rounded-xl shadow-xs font-bold">
-                    {settings.promoCtaText ||
-                      (language === "ar" ? "اكتشف العروض الآن" : "Shop Offers")}
-                  </Button>
-                </Link>
-              </div>
-              {settings.promoImageUrl && (
-                <div className="w-full md:w-1/3 max-w-sm rounded-2xl overflow-hidden shadow-md border border-white/40">
-                  <img
-                    src={settings.promoImageUrl}
-                    alt={settings.promoTitle || "Promo"}
-                    className="w-full h-48 md:h-64 object-cover hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-              )}
-            </div>
-          </section>
-        );
+        // Removed per user request to eliminate duplicate presentation with curated bundles
+        return null;
 
       case "before_after":
         if (settings.showBeforeAfterSection === false) return null;
@@ -610,7 +588,7 @@ function FeaturedProducts() {
         </div>
       </div>
 
-      {/* Render layout based on settings: bento, carousel, or grid */}
+      {/* Strict 2-on-Mobile and 3-on-Desktop Grid Principle with gap-2.5 */}
       {filtered.length === 0 ? (
         <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
           <p className="text-xs sm:text-sm text-slate-500">{t("common.noResults")}</p>
@@ -620,9 +598,11 @@ function FeaturedProducts() {
       ) : layout === "carousel" ? (
         <CarouselProducts products={filtered} />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6 transition-all duration-300">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-2.5 sm:gap-3.5 md:gap-5 transition-all duration-300">
           {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <div key={p.id} className="w-full h-full flex flex-col">
+              <ProductCard product={p} />
+            </div>
           ))}
         </div>
       )}

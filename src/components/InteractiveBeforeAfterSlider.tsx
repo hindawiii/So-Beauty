@@ -220,75 +220,99 @@ export function InteractiveBeforeAfterSlider() {
                   <span>{t("home.afterLabel")}</span>
                 </span>
               </div>
+            </div>
 
-              {/* Introductory Floating Swipe Hint */}
-              {!hasInteracted && (
-                <div className="absolute bottom-2.5 sm:bottom-3 inset-x-0 mx-auto w-fit z-10 pointer-events-none animate-bounce">
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-white text-xs font-bold border border-white/25 shadow-xs">
-                    <ChevronsLeftRight className="w-3.5 h-3.5 text-amber-300" />
-                    <span>{language === "ar" ? "اسحبي للمقارنة" : "Slide to compare"}</span>
-                  </span>
+            {/* Minimalist Precision Slider Control Track Underneath the Image Frame */}
+            <div className="mt-3 p-2 rounded-2xl bg-slate-50/90 dark:bg-slate-900/60 border border-border/80 shadow-2xs space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold px-1 select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSliderPosition(10);
+                    setHasInteracted(true);
+                  }}
+                  className={`flex items-center gap-1.5 transition-all cursor-pointer ${
+                    sliderPosition < 40
+                      ? "text-amber-600 dark:text-amber-400 font-black scale-102"
+                      : "text-slate-500 hover:text-foreground"
+                  }`}
+                  title={t("home.beforeLabel")}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-400/30 shrink-0" />
+                  <span>{t("home.beforeLabel")}</span>
+                </button>
+
+                <div className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-background border border-border text-muted-foreground shadow-2xs">
+                  <ChevronsLeftRight className="w-3 h-3 text-primary" />
+                  <span>{Math.round(sliderPosition)}%</span>
                 </div>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSliderPosition(90);
+                    setHasInteracted(true);
+                  }}
+                  className={`flex items-center gap-1.5 transition-all cursor-pointer ${
+                    sliderPosition > 60
+                      ? "text-primary font-black scale-102"
+                      : "text-slate-500 hover:text-foreground"
+                  }`}
+                  title={t("home.afterLabel")}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>{t("home.afterLabel")}</span>
+                </button>
+              </div>
+
+              {/* Native Accessible Range Slider Input */}
+              <div className="relative flex items-center px-1">
+                <input
+                  type="range"
+                  min="5"
+                  max="95"
+                  step="0.5"
+                  value={sliderPosition}
+                  onChange={(e) => {
+                    setSliderPosition(Number(e.target.value));
+                    setHasInteracted(true);
+                  }}
+                  className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 accent-primary cursor-pointer transition-all"
+                  aria-label={
+                    language === "ar" ? "شريط سحب مقارنة النتائج" : "Comparison slider track"
+                  }
+                />
+              </div>
             </div>
           </div>
 
-          {/* Column 2: Clinical Evidence Metrics & Direct Conversion Card (md:col-span-5 on tablet & desktop) */}
-          <div className="md:col-span-5 flex flex-col justify-center gap-2.5 sm:gap-3.5">
-            {/* Collapsible Clinical Evidence Metrics */}
-            <div className="flex flex-col gap-2 sm:gap-2.5">
-              {clinicalMetrics.map((metric) => {
-                const isOpen = openMetricId === metric.id;
-                return (
-                  <div
-                    key={metric.id}
-                    className={`rounded-xl sm:rounded-2xl border transition-all duration-200 overflow-hidden ${
-                      isOpen
-                        ? "bg-card border-primary/35 shadow-xs ring-1 ring-primary/20"
-                        : "bg-card/90 border-primary/10 hover:border-primary/25 shadow-2xs"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleMetric(metric.id)}
-                      aria-expanded={isOpen}
-                      className="w-full flex items-center justify-between gap-2.5 sm:gap-3 p-2.5 sm:p-3 text-start cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]"
-                    >
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 font-extrabold text-xs sm:text-sm">
-                          {metric.icon ? (
-                            <metric.icon className="w-4 h-4 text-primary" />
-                          ) : (
-                            metric.stat
-                          )}
-                        </div>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                          {language === "ar" ? metric.titleAr : metric.titleEn}
-                        </h4>
-                      </div>
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground transition-transform duration-200 ${
-                          isOpen ? "rotate-180 text-primary bg-primary/10" : "bg-muted/40"
-                        }`}
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </div>
-                    </button>
-                    {isOpen && (
-                      <div className="px-3 pb-3 sm:px-3.5 sm:pb-3.5 pt-0 text-xs sm:text-sm leading-relaxed animate-in fade-in-50 duration-200">
-                        <p className="border-t border-primary/10 pt-2 text-slate-700 dark:text-slate-200 font-medium">
-                          {language === "ar" ? metric.descAr : metric.descEn}
-                        </p>
-                      </div>
-                    )}
+          {/* Column 2: Concise Clinical Trust & Direct In-Place Routine Quick Action */}
+          <div className="md:col-span-5 flex flex-col justify-center gap-3">
+            {/* Scannable Clinical Evidence Trust Strip (No heavy accordions) */}
+            <div className="flex flex-col gap-2">
+              {clinicalMetrics.map((metric) => (
+                <div
+                  key={metric.id}
+                  className="rounded-xl sm:rounded-2xl border border-primary/15 bg-card/90 p-2.5 sm:p-3 flex items-center gap-3 shadow-2xs"
+                >
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 font-extrabold text-xs sm:text-sm">
+                    {metric.icon ? <metric.icon className="w-4 h-4 text-primary" /> : metric.stat}
                   </div>
-                );
-              })}
+                  <div className="min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {language === "ar" ? metric.titleAr : metric.titleEn}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {language === "ar" ? metric.descAr : metric.descEn}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Direct Conversion Action & Safety Guarantee */}
-            <div className="pt-1 sm:pt-2 flex flex-col gap-2.5">
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
+            {/* In-Place Routine Quick Action */}
+            <div className="pt-1 flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span className="truncate">
                   {language === "ar"
@@ -297,22 +321,27 @@ export function InteractiveBeforeAfterSlider() {
                 </span>
               </div>
 
-              <Link to="/boxes" className="w-full">
-                <Button
-                  size="sm"
-                  className="w-full rounded-full px-4 sm:px-6 h-10 sm:h-11 min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm font-bold gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
-                >
-                  <Sparkle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>
-                    {language === "ar" ? "روتين النتائج المثبتة" : "Proven Results Routine"}
-                  </span>
-                  {isRTL ? (
-                    <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  ) : (
-                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  )}
-                </Button>
-              </Link>
+              <Button
+                type="button"
+                onClick={() => {
+                  const shelf =
+                    document.getElementById("shelf-boxes-target") ||
+                    document.querySelector("section[aria-label*='البوكسات']");
+                  if (shelf) {
+                    shelf.scrollIntoView({ behavior: "smooth", block: "start" });
+                  } else {
+                    window.location.href = "/boxes";
+                  }
+                }}
+                size="sm"
+                className="w-full rounded-full px-4 sm:px-6 h-10 sm:h-11 min-h-[42px] text-xs sm:text-sm font-bold gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
+              >
+                <Sparkle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
+                <span>
+                  {language === "ar" ? "اكتشفي باقات وروتين النتائج" : "Explore Proven Routines"}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 animate-bounce shrink-0" />
+              </Button>
             </div>
           </div>
         </div>

@@ -93,9 +93,12 @@ export function SiteHeader() {
     { to: "/track-order", label: t("nav.trackOrder"), highlight: false },
   ] as const;
 
-  // Render contextual icon matching the chosen banner theme
+  // Render contextual icon matching the chosen banner theme (stars removed per user request)
   const renderBannerIcon = () => {
-    const iconType = settings.bannerIcon || "sparkles";
+    const iconType = settings.bannerIcon;
+    if (!iconType || iconType === "none" || iconType === "sparkles") {
+      return null;
+    }
     const className = "w-3.5 h-3.5 shrink-0 opacity-95";
     switch (iconType) {
       case "gift":
@@ -108,11 +111,8 @@ export function SiteHeader() {
         return <ShieldCheck className={className} />;
       case "quote":
         return <Quote className={className} />;
-      case "none":
-        return null;
-      case "sparkles":
       default:
-        return <Sparkles className={className} />;
+        return null;
     }
   };
 
@@ -150,7 +150,7 @@ export function SiteHeader() {
         {/* Single Slim Unified Utility & Promo Bar (Streamlined ~32px) */}
         <div className="bg-primary text-primary-foreground text-[11px] sm:text-xs tracking-wide transition-all duration-200 select-none border-b border-white/10">
           <div className="container mx-auto px-2.5 sm:px-6 h-8 sm:h-8.5 flex items-center justify-between gap-2">
-            {/* Promo Announcement Ticker (Centered & Flowing) */}
+            {/* Promo Announcement Ticker (Clean and text-focused, no stars) */}
             <div className="flex-1 flex items-center justify-start sm:justify-center overflow-hidden min-w-0">
               <div className="flex items-center gap-1.5 font-medium truncate max-w-full transition-opacity duration-300">
                 {renderBannerIcon()}
@@ -177,50 +177,64 @@ export function SiteHeader() {
 
         {/* Main Row: Optimized Spacious Layout across Mobile, Tablet, and Desktop */}
         <div className="container mx-auto px-2.5 sm:px-6 h-15 sm:h-16 md:h-20 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
-          {/* Left/Start: Official Brand Identity (Supports Logo Image or Typographic Wordmark) */}
-          <Link
-            to="/"
-            className="shrink-0 text-start flex items-center group py-0.5 select-none min-w-0"
-          >
-            {settings.logoUrl ? (
-              <img
-                src={settings.logoUrl}
-                alt={settings.storeName}
-                className="h-8 sm:h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-102"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex flex-col justify-center min-w-0">
-                <span
-                  className="text-base sm:text-xl md:text-2xl font-black text-primary tracking-tight leading-none transition-transform group-hover:scale-102 truncate"
-                  style={{
-                    fontFamily:
-                      language === "ar"
-                        ? "var(--font-brand-arabic), 'El Messiri', serif"
-                        : "var(--font-latin), 'Playfair Display', serif",
-                    fontDisplay: "swap",
-                  }}
-                >
-                  {language === "ar"
-                    ? settings.storeName.split("-")[0]?.trim() || "سو بيوتي"
-                    : settings.storeName_en || "So Beauty"}
-                </span>
-                <span
-                  className="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 tracking-normal leading-tight mt-0.5 truncate"
-                  style={{
-                    fontFamily:
-                      language === "ar"
-                        ? "var(--font-latin), 'Playfair Display', serif"
-                        : "var(--font-brand-arabic), 'El Messiri', serif",
-                  }}
-                >
-                  {language === "ar"
-                    ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
-                    : settings.tagline_en || "Pure Botanical Care"}
-                </span>
-              </div>
-            )}
-          </Link>
+          {/* Start/Right (RTL): Mobile Hamburger Menu Button + Brand Identity */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
+            {/* Mobile / Tablet Menu Toggle Button (< md) - Placed at the START (Right in Arabic RTL) */}
+            <button
+              type="button"
+              className="md:hidden flex items-center justify-center w-10 h-10 min-w-[44px] min-h-[44px] rounded-full hover:bg-muted text-slate-800 dark:text-slate-100 transition-colors cursor-pointer shrink-0 active:scale-95"
+              onClick={() => setOpen((v) => !v)}
+              aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
+              title={open ? "إغلاق القائمة" : "فتح القائمة"}
+            >
+              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            {/* Official Brand Identity (Logo Image or Typographic Wordmark) */}
+            <Link
+              to="/"
+              className="shrink-0 text-start flex items-center group py-0.5 select-none min-w-0"
+            >
+              {settings.logoUrl ? (
+                <img
+                  src={settings.logoUrl}
+                  alt={settings.storeName}
+                  className="h-8 sm:h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-102"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex flex-col justify-center min-w-0">
+                  <span
+                    className="text-base sm:text-xl md:text-2xl font-black text-primary tracking-tight leading-none transition-transform group-hover:scale-102 truncate"
+                    style={{
+                      fontFamily:
+                        language === "ar"
+                          ? "var(--font-brand-arabic), 'El Messiri', serif"
+                          : "var(--font-latin), 'Playfair Display', serif",
+                      fontDisplay: "swap",
+                    }}
+                  >
+                    {language === "ar"
+                      ? settings.storeName.split("-")[0]?.trim() || "سو بيوتي"
+                      : settings.storeName_en || "So Beauty"}
+                  </span>
+                  <span
+                    className="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 tracking-normal leading-tight mt-0.5 truncate"
+                    style={{
+                      fontFamily:
+                        language === "ar"
+                          ? "var(--font-latin), 'Playfair Display', serif"
+                          : "var(--font-brand-arabic), 'El Messiri', serif",
+                    }}
+                  >
+                    {language === "ar"
+                      ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
+                      : settings.tagline_en || "Pure Botanical Care"}
+                  </span>
+                </div>
+              )}
+            </Link>
+          </div>
 
           {/* Center: Luxe Interactive Search Bar for Tablets & Desktops (Eliminates empty vacuum) */}
           <div className="hidden md:flex flex-1 max-w-md mx-2 lg:mx-6">
@@ -242,13 +256,13 @@ export function SiteHeader() {
           {/* Dynamic spacer for mobile/small screens */}
           <div className="flex-1 md:hidden" />
 
-          {/* Right/End: Responsive Grouped Actions (Spacious and breathable touch targets) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 shrink-0">
-            {/* 1. Luxe Search Lens Icon (Shown on mobile & tablets < md) */}
+          {/* End/Left (RTL): Smart Unified Control Capsule Dock (Search, Wishlist, Cart, User) */}
+          <div className="flex items-center p-1 sm:p-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 shadow-2xs gap-1 sm:gap-1.5 shrink-0">
+            {/* 1. Luxe Search Lens Icon (Shown on mobile & tablets < md inside capsule) */}
             <button
               type="button"
               onClick={() => setIsSearchModalOpen(true)}
-              className="md:hidden relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
+              className="md:hidden relative flex items-center justify-center w-8.5 h-8.5 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("common.search")}
               title={t("common.search")}
             >
@@ -256,18 +270,18 @@ export function SiteHeader() {
               <span className="sr-only">{t("common.search")}</span>
             </button>
 
-            {/* 2. Wishlist Link (Encased in smart circular shell matching Search & Account) */}
+            {/* 2. Wishlist Link inside Capsule */}
             <Link
               to="/wishlist"
               onClick={triggerWishlistHop}
-              className="relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-700 dark:text-slate-200 hover:text-rose-600 border border-border/70 hover:border-rose-400/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
+              className="relative flex items-center justify-center w-8.5 h-8.5 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-700 dark:text-slate-200 hover:text-rose-600 transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("header.wishlistCount")}
               title={t("header.wishlistCount")}
             >
-              <Heart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-105" />
+              <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-105" />
               {wishlistCount > 0 && (
                 <span
-                  className={`absolute -top-1 -end-1 sm:-top-1.5 sm:-end-1.5 min-w-[17px] h-4 sm:h-4.5 px-1 rounded-full bg-rose-500 text-white font-mono font-black text-[9.5px] sm:text-[10px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
+                  className={`absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white font-mono font-black text-[9px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
                     wishlistBouncing ? "animate-agile-hop" : "animate-continuous-hop"
                   }`}
                 >
@@ -276,18 +290,18 @@ export function SiteHeader() {
               )}
             </Link>
 
-            {/* 3. Shopping Cart Button (Encased in smart circular shell matching Search & Account) */}
+            {/* 3. Shopping Cart Button inside Capsule */}
             <Link
               to="/cart"
               onClick={triggerCartHop}
-              className="relative flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
+              className="relative flex items-center justify-center w-8.5 h-8.5 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("header.cartCount")}
               title={t("header.cartCount")}
             >
-              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-105" />
+              <ShoppingCart className="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-105" />
               {count > 0 && (
                 <span
-                  className={`absolute -top-1 -end-1 sm:-top-1.5 sm:-end-1.5 min-w-[17px] h-4 sm:h-4.5 px-1 rounded-full bg-primary text-primary-foreground font-mono font-black text-[9.5px] sm:text-[10px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
+                  className={`absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground font-mono font-black text-[9px] leading-none flex items-center justify-center shadow-xs ring-1.5 ring-background z-20 pointer-events-none select-none ${
                     cartBouncing ? "animate-agile-hop" : "animate-continuous-hop"
                   }`}
                 >
@@ -296,16 +310,19 @@ export function SiteHeader() {
               )}
             </Link>
 
-            {/* 4. Login / Account Controls: Protected strictly between Cart and Hamburger Menu */}
+            {/* Subtle Vertical Divider */}
+            <div className="h-4 w-px bg-slate-300/80 dark:bg-slate-700/80 mx-0.5 shrink-0" />
+
+            {/* 4. Login / Account Controls inside Capsule */}
             {email ? (
-              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 <Link
                   to="/account"
-                  className="flex items-center justify-center w-9.5 h-9.5 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary border border-border/70 hover:border-primary/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95"
+                  className="flex items-center justify-center w-8.5 h-8.5 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95"
                   aria-label={t("header.myAccount")}
                   title={`${t("header.myAccount")} (${email})`}
                 >
-                  <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <User className="w-4 h-4" />
                 </Link>
                 <button
                   onClick={async () => {
@@ -314,19 +331,19 @@ export function SiteHeader() {
                     await authClient.auth.signOut();
                     navigate({ to: "/", replace: true });
                   }}
-                  className="hidden sm:inline-flex p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer min-w-[38px] min-h-[38px] items-center justify-center active:scale-95"
+                  className="hidden sm:inline-flex p-1.5 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer min-w-[32px] min-h-[32px] items-center justify-center active:scale-95"
                   aria-label={t("header.logout")}
                   title={t("header.logout")}
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
               <div className="shrink-0 flex items-center">
-                {/* Mobile (< sm): Sleek compact circular user icon button with >= 40px touch zone */}
+                {/* Mobile (< sm): Sleek compact circular user icon inside capsule */}
                 <Link
                   to="/auth"
-                  className="sm:hidden flex items-center justify-center w-9.5 h-9.5 min-w-[38px] min-h-[38px] rounded-full bg-slate-100/90 dark:bg-slate-800/80 text-primary hover:bg-primary/10 border border-border/70 hover:border-primary/40 shadow-2xs transition-all cursor-pointer active:scale-95"
+                  className="sm:hidden flex items-center justify-center w-8.5 h-8.5 min-w-[36px] min-h-[36px] rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer active:scale-95 shadow-2xs"
                   aria-label={t("header.login")}
                   title={t("header.login")}
                 >
@@ -342,7 +359,7 @@ export function SiteHeader() {
                 >
                   <Button
                     size="sm"
-                    className="rounded-full text-xs font-bold px-3 sm:px-4 h-8 sm:h-9 cursor-pointer shadow-xs gap-1.5"
+                    className="rounded-full text-xs font-bold px-3.5 h-8 cursor-pointer shadow-xs gap-1.5"
                   >
                     <User className="w-3.5 h-3.5" />
                     <span>{t("header.login")}</span>
@@ -350,16 +367,6 @@ export function SiteHeader() {
                 </Link>
               </div>
             )}
-
-            {/* 7. Mobile / Tablet Menu Toggle Button (< md) - At the very end of header */}
-            <button
-              type="button"
-              className="md:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] sm:min-w-[44px] sm:min-h-[44px] rounded-xl hover:bg-muted text-slate-700 dark:text-slate-200 transition-colors cursor-pointer shrink-0"
-              onClick={() => setOpen((v) => !v)}
-              aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
-            >
-              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
         </div>
 

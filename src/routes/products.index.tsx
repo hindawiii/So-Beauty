@@ -796,9 +796,11 @@ function ProductCatalog({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-2.5 sm:gap-3.5 md:gap-5 transition-all duration-300">
           {filteredProducts.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <div key={p.id} className="w-full h-full flex flex-col">
+              <ProductCard product={p} />
+            </div>
           ))}
         </div>
       )}

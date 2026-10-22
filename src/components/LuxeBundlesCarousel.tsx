@@ -167,36 +167,18 @@ export function LuxeBundlesCarousel() {
               {bannerSubtitle}
             </p>
 
-            {/* Dual Actions in a Single Compact Row on All Screen Sizes */}
-            <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            {/* Single Prominent Action Button */}
+            <div className="flex items-center w-full sm:w-auto">
               <Button
                 type="button"
                 onClick={handleScrollToShelf}
                 size="sm"
-                className="flex-1 sm:flex-initial rounded-full px-3.5 sm:px-6 min-h-[42px] sm:min-h-[44px] h-10 sm:h-11 text-xs sm:text-sm font-bold gap-1.5 sm:gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
+                className="w-full sm:w-auto rounded-full px-5 sm:px-7 min-h-[44px] h-11 text-xs sm:text-sm font-bold gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
               >
-                <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <Gift className="w-4 h-4 shrink-0" />
                 <span className="truncate">{bannerCta}</span>
-                <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-bounce shrink-0" />
+                <ChevronDown className="w-4 h-4 animate-bounce shrink-0" />
               </Button>
-
-              <Link to="/boxes" className="flex-1 sm:flex-initial">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto rounded-full px-3 sm:px-5 min-h-[42px] sm:min-h-[44px] h-10 sm:h-11 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 border-primary/25 hover:bg-primary/5 transition-all justify-center"
-                >
-                  <span className="truncate">
-                    {language === "ar" ? "كل البوكسات" : "All Bundles"}
-                  </span>
-                  {isRTL ? (
-                    <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
-                  ) : (
-                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                  )}
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
