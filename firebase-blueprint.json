@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Store products for skincare, fragrance, hair, and makeup",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Arabic product name",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "name_en": { "type": "string", "description": "English product name", "maxLength": 200 },
+        "description": { "type": "string", "description": "Arabic description", "maxLength": 3000 },
+        "description_en": {
+          "type": "string",
+          "description": "English description",
+          "maxLength": 3000
+        },
+        "category": { "type": "string", "enum": ["fragrance", "hair", "makeup", "skincare"] },
+        "price": { "type": "number", "minimum": 0 },
+        "original_price": { "type": "number", "minimum": 0 },
+        "stock": { "type": "integer", "minimum": 0 },
+        "image_url": { "type": "string" },
+        "gallery_images": { "type": "array", "items": { "type": "string" } },
+        "is_active": { "type": "boolean" },
+        "is_featured": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "price", "stock", "is_active", "created_at"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase orders",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": ["string", "null"] },
+        "total": { "type": "number", "minimum": 0 },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+        },
+        "full_name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "phone": { "type": "string", "minLength": 6, "maxLength": 25 },
+        "shipping_address": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "city": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "notes": { "type": ["string", "null"], "maxLength": 500 },
+        "order_items": { "type": "array" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "total",
+        "status",
+        "full_name",
+        "phone",
+        "shipping_address",
+        "city",
+        "order_items",
+        "created_at"
+      ]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile records",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "phone": { "type": ["string", "null"], "maxLength": 25 },
+        "address": { "type": ["string", "null"], "maxLength": 500 },
+        "city": { "type": ["string", "null"], "maxLength": 100 },
+        "email": { "type": ["string", "null"], "maxLength": 150 },
+        "role": { "type": "string", "enum": ["admin", "customer"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["full_name", "role", "created_at"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer product reviews and ratings",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+        "body": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "is_approved": { "type": "boolean" },
+        "product_id": { "type": ["string", "null"] },
+        "product_name": { "type": ["string", "null"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "rating", "body", "is_approved", "created_at"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Catalog products for store browsing and admin management"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer purchase orders and status tracking"
+    },
+    "/profiles/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Customer and administrator profiles"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Public customer feedback and star ratings"
+    }
+  }
+}

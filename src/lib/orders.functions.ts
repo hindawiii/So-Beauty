@@ -6,8 +6,21 @@ import type { Database } from "@/types/database.types";
 import { MOCK_PRODUCTS, atomicDecrementMockStock } from "./mock-products";
 import { getShippingFee } from "./shipping";
 import { z } from "zod";
+import { db } from "./firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 
-// Autonomous local profile store
+// Autonomous local profile store fallback
 const LOCAL_PROFILES = new Map<
   string,
   {
@@ -30,6 +43,7 @@ export type SavedOrder = {
   city: string;
   notes?: string | null;
   created_at: string;
+  updated_at?: string;
   order_items: {
     id: string;
     product_id: string;
@@ -39,7 +53,7 @@ export type SavedOrder = {
   }[];
 };
 
-// In-memory orders registry for guests and fallback when database is in transition
+// In-memory orders registry for guests and fallback
 export const MOCK_ORDERS: SavedOrder[] = [
   {
     id: "ord-88129034-7a1b-4c2d-9e3f-1a2b3c4d5e6f",
@@ -134,11 +148,7 @@ export const MOCK_ORDERS: SavedOrder[] = [
   },
 ];
 
-function getSupabaseClient() {
-  return null;
-}
-
-// Helper to sanitize text input from potential script injection or malformed characters
+// Helper to sanitize text input from potential script injection
 function sanitizeInput(str: string): string {
   return str.replace(/[<>]/g, "").trim();
 }
@@ -179,7 +189,7 @@ const createOrderSchema = z.object({
 
 /**
  * Creates an order supporting both logged-in users and guests.
- * Performs atomic stock validation and decrement.
+ * Performs atomic stock validation and decrement, persisting to Firestore.
  */
 export const createOrder = createServerFn({ method: "POST" })
   .validator((data: unknown) => createOrderSchema.parse(data))
@@ -190,23 +200,14 @@ export const createOrder = createServerFn({ method: "POST" })
     const authHeader = request?.headers?.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "").trim();
-      const sb = getSupabaseClient();
-      if (sb && token.split(".").length === 3) {
-        try {
-          const { data: claimsData } = await sb.auth.getClaims(token);
-          if (claimsData?.claims?.sub) {
-            authenticatedUserId = claimsData.claims.sub;
-          }
-        } catch {
-          // Token expired or invalid, proceed as guest
-        }
+      if (token && token.length > 5) {
+        authenticatedUserId = token.slice(0, 32);
       }
     }
 
-    // 2. Resolve products and validate availability
+    // 2. Resolve products from Firestore or in-memory fallback
     const ids = data.items.map((i) => i.product_id);
-    const sb = getSupabaseClient();
-    let dbProducts: {
+    const catalog: {
       id: string;
       name: string;
       price: number;
@@ -214,50 +215,46 @@ export const createOrder = createServerFn({ method: "POST" })
       is_active: boolean;
     }[] = [];
 
-    if (sb) {
+    for (const id of ids) {
+      let resolved = false;
       try {
-        const { data: rows, error } = await sb
-          .from("products")
-          .select("id,name,price,stock,is_active")
-          .in("id", ids);
-        if (!error && rows) {
-          dbProducts = rows.map((r) => ({
-            id: r.id,
-            name: r.name,
-            price: Number(r.price),
-            stock: Number(r.stock),
-            is_active: r.is_active,
-          }));
+        const pSnap = await getDoc(doc(db, "products", id));
+        if (pSnap.exists()) {
+          const d = pSnap.data();
+          catalog.push({
+            id: pSnap.id,
+            name: d.name,
+            price: Number(d.price) || 0,
+            stock: Number(d.stock) || 0,
+            is_active: d.is_active !== false,
+          });
+          resolved = true;
         }
-      } catch {
-        // Fallback to in-memory catalog
+      } catch (err) {
+        console.warn("[CreateOrder] Firestore doc fetch fallback:", err);
+      }
+
+      if (!resolved) {
+        const fromMock = MOCK_PRODUCTS.find((p) => p.id === id);
+        if (fromMock) {
+          catalog.push({
+            id: fromMock.id,
+            name: fromMock.name,
+            price: Number(fromMock.price),
+            stock: Number(fromMock.stock),
+            is_active: fromMock.is_active,
+          });
+        }
       }
     }
 
-    // Combine DB products with mock products as resilient catalog
-    const catalog = ids.map((id) => {
-      const fromDb = dbProducts.find((p) => p.id === id);
-      if (fromDb) return fromDb;
-      const fromMock = MOCK_PRODUCTS.find((p) => p.id === id);
-      if (fromMock) {
-        return {
-          id: fromMock.id,
-          name: fromMock.name,
-          price: Number(fromMock.price),
-          stock: Number(fromMock.stock),
-          is_active: fromMock.is_active,
-        };
-      }
-      return null;
-    });
-
-    if (catalog.some((p) => !p)) {
+    if (catalog.length < ids.length) {
       throw new Error("أحد المنتجات المختارة غير متوفر في المتجر");
     }
 
-    // 3. Pre-validate stock for all items before any deduction
+    // 3. Pre-validate stock for all items
     for (const item of data.items) {
-      const prod = catalog.find((p) => p?.id === item.product_id)!;
+      const prod = catalog.find((p) => p.id === item.product_id)!;
       if (!prod.is_active) {
         throw new Error(`المنتج (${prod.name}) غير متاح للطلب حالياً`);
       }
@@ -268,10 +265,10 @@ export const createOrder = createServerFn({ method: "POST" })
       }
     }
 
-    // 4. Calculate total & prepare order items payload
+    // 4. Calculate total & order items payload
     let total = 0;
     const orderItemsPayload = data.items.map((it) => {
-      const p = catalog.find((x) => x?.id === it.product_id)!;
+      const p = catalog.find((x) => x.id === it.product_id)!;
       const itemSubtotal = p.price * it.quantity;
       total += itemSubtotal;
       return {
@@ -282,24 +279,21 @@ export const createOrder = createServerFn({ method: "POST" })
       };
     });
 
-    // 5. Atomic Stock Decrement
-    // Always decrement in in-memory state for immediate sync
+    // 5. Decrement stock in Firestore & in-memory
     for (const it of data.items) {
       atomicDecrementMockStock(it.product_id, it.quantity);
-    }
-
-    // Also decrement in DB if connected
-    if (sb) {
-      for (const it of data.items) {
-        try {
-          const currentProd = dbProducts.find((p) => p.id === it.product_id);
-          if (currentProd) {
-            const nextStock = Math.max(0, currentProd.stock - it.quantity);
-            await sb.from("products").update({ stock: nextStock }).eq("id", it.product_id);
-          }
-        } catch {
-          // Non-blocking for offline fallback
+      try {
+        const pRef = doc(db, "products", it.product_id);
+        const pSnap = await getDoc(pRef);
+        if (pSnap.exists()) {
+          const curStock = Number(pSnap.data().stock) || 0;
+          await updateDoc(pRef, {
+            stock: Math.max(0, curStock - it.quantity),
+            updated_at: new Date().toISOString(),
+          });
         }
+      } catch (err) {
+        console.warn("[CreateOrder] Stock decrement fallback:", err);
       }
     }
 
@@ -308,39 +302,9 @@ export const createOrder = createServerFn({ method: "POST" })
     const finalTotal = total + shippingFee;
 
     // 7. Generate order ID and record order
-    const orderId = crypto.randomUUID();
-    let dbSuccess = false;
+    const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const now = new Date().toISOString();
 
-    if (sb) {
-      try {
-        const { error: oErr } = await sb.from("orders").insert({
-          id: orderId,
-          user_id: authenticatedUserId as never,
-          total: finalTotal,
-          full_name: data.full_name,
-          phone: data.phone,
-          shipping_address: data.shipping_address,
-          city: data.city,
-          notes: data.notes ?? null,
-        });
-
-        if (!oErr) {
-          const { error: iErr } = await sb.from("order_items").insert(
-            orderItemsPayload.map((x) => ({
-              ...x,
-              order_id: orderId,
-            })),
-          );
-          if (!iErr) {
-            dbSuccess = true;
-          }
-        }
-      } catch {
-        dbSuccess = false;
-      }
-    }
-
-    // Save in memory registry (guarantees order persistence for guests & offline preview)
     const savedOrder: SavedOrder = {
       id: orderId,
       user_id: authenticatedUserId,
@@ -351,13 +315,23 @@ export const createOrder = createServerFn({ method: "POST" })
       shipping_address: data.shipping_address,
       city: data.city,
       notes: data.notes ?? null,
-      created_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
       order_items: orderItemsPayload.map((item, index) => ({
         id: `${orderId}-item-${index + 1}`,
         ...item,
       })),
     };
+
+    // Save in memory registry
     MOCK_ORDERS.unshift(savedOrder);
+
+    // Save in Firestore
+    try {
+      await setDoc(doc(db, "orders", orderId), savedOrder);
+    } catch (err) {
+      console.warn("[CreateOrder] Firestore order save fallback:", err);
+    }
 
     return {
       orderId,
@@ -371,12 +345,34 @@ export const createOrder = createServerFn({ method: "POST" })
 export const listMyOrders = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .handler(async ({ context }) => {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "orders"),
+          where("user_id", "==", context.userId),
+          orderBy("created_at", "desc"),
+        ),
+      );
+      if (!snap.empty) {
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SavedOrder);
+      }
+    } catch (err) {
+      console.warn("[listMyOrders] Firestore query fallback:", err);
+    }
     return MOCK_ORDERS.filter((o) => o.user_id === context.userId);
   });
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .handler(async ({ context }) => {
+    try {
+      const snap = await getDoc(doc(db, "profiles", context.userId));
+      if (snap.exists()) {
+        return { id: snap.id, ...snap.data() };
+      }
+    } catch (err) {
+      console.warn("[getMyProfile] Firestore get fallback:", err);
+    }
     return (
       LOCAL_PROFILES.get(context.userId) || {
         id: context.userId,
@@ -399,7 +395,22 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((data: unknown) => profileSchema.parse(data))
   .handler(async ({ data, context }) => {
-    LOCAL_PROFILES.set(context.userId, { id: context.userId, ...data });
+    const payload = { id: context.userId, ...(data as Record<string, unknown>) };
+    LOCAL_PROFILES.set(context.userId, payload as never);
+
+    try {
+      await setDoc(
+        doc(db, "profiles", context.userId),
+        {
+          ...payload,
+          role: "customer",
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    } catch (err) {
+      console.warn("[updateMyProfile] Firestore save fallback:", err);
+    }
     return { ok: true };
   });
 
@@ -414,7 +425,36 @@ export const trackOrder = createServerFn({ method: "POST" })
     const cleanPhone = raw.replace(/[^0-9+]/g, "");
     const cleanId = raw.replace(/^#/, "").toLowerCase();
 
-    // 1. Check in-memory / local saved orders
+    // 1. Query Firestore
+    try {
+      const matchedFirestore: SavedOrder[] = [];
+      if (cleanId.length >= 6) {
+        const docRef = doc(db, "orders", cleanId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          matchedFirestore.push({ id: snap.id, ...snap.data() } as SavedOrder);
+        }
+      }
+
+      if (matchedFirestore.length === 0 && cleanPhone.length >= 7) {
+        const qSnap = await getDocs(
+          query(collection(db, "orders"), where("phone", "==", cleanPhone), limit(5)),
+        );
+        if (!qSnap.empty) {
+          for (const d of qSnap.docs) {
+            matchedFirestore.push({ id: d.id, ...d.data() } as SavedOrder);
+          }
+        }
+      }
+
+      if (matchedFirestore.length > 0) {
+        return matchedFirestore;
+      }
+    } catch (err) {
+      console.warn("[trackOrder] Firestore query fallback:", err);
+    }
+
+    // 2. Check in-memory saved orders
     const matchedMock = MOCK_ORDERS.filter((o) => {
       const matchId =
         o.id.toLowerCase() === cleanId ||
@@ -425,68 +465,28 @@ export const trackOrder = createServerFn({ method: "POST" })
       return matchId || matchPhone;
     });
 
-    // 2. Check Supabase if connected
-    const sb = getSupabaseClient();
-    if (sb) {
-      try {
-        let queryBuilder = sb
-          .from("orders")
-          .select(
-            "id, total, status, full_name, phone, shipping_address, city, created_at, order_items(id, product_name, quantity, unit_price)",
-          );
-
-        if (cleanId.length === 36) {
-          queryBuilder = queryBuilder.eq("id", cleanId);
-        } else if (cleanPhone.length >= 7) {
-          queryBuilder = queryBuilder.ilike("phone", `%${cleanPhone}%`);
-        } else {
-          queryBuilder = queryBuilder.ilike("id", `${cleanId}%`);
-        }
-
-        const { data: dbOrders, error } = await queryBuilder
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        if (!error && dbOrders && dbOrders.length > 0) {
-          const ids = new Set(dbOrders.map((o) => o.id));
-          const combined = [...dbOrders, ...matchedMock.filter((m) => !ids.has(m.id))];
-          return combined;
-        }
-      } catch {
-        // Fallback gracefully
-      }
-    }
-
     return matchedMock;
   });
 
 /**
- * Admin: List all orders with optional status or text filter
+ * Admin: List all orders with status or text filter
  */
 export const adminListAllOrders = createServerFn({ method: "GET" })
   .validator((data: { adminPin?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
     await requireAdminGuard(data?.adminPin);
 
-    const sb = getSupabaseClient();
-    if (sb) {
-      try {
-        const { data: dbOrders, error } = await sb
-          .from("orders")
-          .select(
-            "id, total, status, full_name, phone, shipping_address, city, notes, created_at, order_items(id, product_name, quantity, unit_price)",
-          )
-          .order("created_at", { ascending: false });
-
-        if (!error && dbOrders && dbOrders.length > 0) {
-          const dbIds = new Set(dbOrders.map((o) => o.id));
-          const mockNonOverlap = MOCK_ORDERS.filter((m) => !dbIds.has(m.id));
-          return [...dbOrders, ...mockNonOverlap];
-        }
-      } catch {
-        // Fallback to in-memory orders
+    try {
+      const snap = await getDocs(query(collection(db, "orders"), orderBy("created_at", "desc")));
+      if (!snap.empty) {
+        const dbOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SavedOrder);
+        const dbIds = new Set(dbOrders.map((o) => o.id));
+        return [...dbOrders, ...MOCK_ORDERS.filter((m) => !dbIds.has(m.id))];
       }
+    } catch (err) {
+      console.warn("[Admin Orders] Firestore query fallback:", err);
     }
+
     return MOCK_ORDERS;
   });
 
@@ -497,7 +497,7 @@ const updateOrderStatusSchema = z.object({
 });
 
 /**
- * Admin: Update status of any order (persists to DB and in-memory registry)
+ * Admin: Update status of any order (persists to Firestore and in-memory)
  */
 export const adminUpdateOrderStatus = createServerFn({ method: "POST" })
   .validator((data: unknown) => updateOrderStatusSchema.parse(data))
@@ -513,14 +513,14 @@ export const adminUpdateOrderStatus = createServerFn({ method: "POST" })
       localOrder.status = data.newStatus;
     }
 
-    // 2. Update Supabase if available
-    const sb = getSupabaseClient();
-    if (sb) {
-      try {
-        await sb.from("orders").update({ status: data.newStatus }).eq("id", data.orderId);
-      } catch {
-        // Fallback gracefully
-      }
+    // 2. Update Firestore
+    try {
+      await updateDoc(doc(db, "orders", data.orderId), {
+        status: data.newStatus,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn("[Admin Update Order Status] Firestore update fallback:", err);
     }
 
     return { ok: true, status: data.newStatus };

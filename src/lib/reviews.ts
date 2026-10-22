@@ -1,3 +1,16 @@
+import { db } from "./firebase";
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+} from "firebase/firestore";
+
 export interface Review {
   id: string;
   name: string;
@@ -104,9 +117,25 @@ export async function toggleSeedReviews(enabled: boolean): Promise<boolean> {
 }
 
 /**
- * Gets all approved reviews for public store display (merging approved reviews with seed reviews if enabled).
+ * Gets all approved reviews for public store display from Firestore and local cache
  */
 export async function getReviews(): Promise<Review[]> {
+  let firestoreReviews: Review[] = [];
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "reviews"),
+        where("is_approved", "==", true),
+        orderBy("created_at", "desc"),
+      ),
+    );
+    if (!snap.empty) {
+      firestoreReviews = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Review);
+    }
+  } catch (err) {
+    console.warn("[Reviews] Firestore getReviews fallback:", err);
+  }
+
   let localReviews: Review[] = [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -117,7 +146,6 @@ export async function getReviews(): Promise<Review[]> {
     console.warn("Could not read local reviews:", err);
   }
 
-  // Filter only approved reviews for public display
   const approvedLocal = localReviews.filter(
     (r) => r.is_approved !== false && r.status !== "pending" && r.status !== "rejected",
   );
@@ -125,21 +153,30 @@ export async function getReviews(): Promise<Review[]> {
   const seedEnabled = isSeedReviewsEnabled();
   const seedList = seedEnabled ? INITIAL_REVIEWS : [];
 
-  const existingIds = new Set(approvedLocal.map((r) => r.id));
-  const existingNames = new Set(approvedLocal.map((r) => r.name));
+  const combined = [...firestoreReviews, ...approvedLocal];
+  const existingIds = new Set(combined.map((r) => r.id));
+  const existingNames = new Set(combined.map((r) => r.name));
 
-  const localFallback = [
-    ...approvedLocal,
+  return [
+    ...combined,
     ...seedList.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name)),
   ];
-
-  return localFallback;
 }
 
 /**
  * Gets all reviews for the admin panel (including pending, approved, rejected, and seed reviews)
  */
 export async function getAllAdminReviews(): Promise<Review[]> {
+  let firestoreReviews: Review[] = [];
+  try {
+    const snap = await getDocs(query(collection(db, "reviews"), orderBy("created_at", "desc")));
+    if (!snap.empty) {
+      firestoreReviews = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Review);
+    }
+  } catch (err) {
+    console.warn("[Admin Reviews] Firestore query fallback:", err);
+  }
+
   let localReviews: Review[] = [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -150,16 +187,14 @@ export async function getAllAdminReviews(): Promise<Review[]> {
     console.warn("Could not read local reviews:", err);
   }
 
-  const existingIds = new Set(localReviews.map((r) => r.id));
-  const existingNames = new Set(localReviews.map((r) => r.name));
+  const combined = [...firestoreReviews, ...localReviews];
+  const existingIds = new Set(combined.map((r) => r.id));
+  const existingNames = new Set(combined.map((r) => r.name));
 
-  // Merge with initial seed reviews so admin can view or moderate them
-  const merged = [
-    ...localReviews,
+  return [
+    ...combined,
     ...INITIAL_REVIEWS.filter((r) => !existingIds.has(r.id) && !existingNames.has(r.name)),
   ];
-
-  return merged;
 }
 
 /**
@@ -172,12 +207,22 @@ export async function approveReview(id: string): Promise<Review | null> {
     target.is_approved = true;
     target.status = "approved";
   } else {
-    // Check if it's one of INITIAL_REVIEWS
     const seed = INITIAL_REVIEWS.find((r) => r.id === id);
     if (seed) {
       target = { ...seed, is_approved: true, status: "approved" };
       reviews.unshift(target);
     }
+  }
+
+  // Update Firestore
+  try {
+    await updateDoc(doc(db, "reviews", id), {
+      is_approved: true,
+      status: "approved",
+      updated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[Approve Review] Firestore update fallback:", err);
   }
 
   if (target && typeof window !== "undefined") {
@@ -208,6 +253,17 @@ export async function rejectReview(id: string): Promise<Review | null> {
     }
   }
 
+  // Update Firestore
+  try {
+    await updateDoc(doc(db, "reviews", id), {
+      is_approved: false,
+      status: "rejected",
+      updated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[Reject Review] Firestore update fallback:", err);
+  }
+
   if (target && typeof window !== "undefined") {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reviews));
@@ -225,6 +281,12 @@ export async function rejectReview(id: string): Promise<Review | null> {
 export async function deleteReview(id: string): Promise<boolean> {
   const reviews = await getAllAdminReviews();
   const next = reviews.filter((r) => r.id !== id);
+
+  try {
+    await deleteDoc(doc(db, "reviews", id));
+  } catch (err) {
+    console.warn("[Delete Review] Firestore delete fallback:", err);
+  }
 
   if (typeof window !== "undefined") {
     try {
@@ -263,6 +325,12 @@ export async function adminAddManualReview(data: {
     product_name: data.product_name?.trim() || undefined,
   };
 
+  try {
+    await setDoc(doc(db, "reviews", newReview.id), newReview);
+  } catch (err) {
+    console.warn("[Admin Add Review] Firestore save fallback:", err);
+  }
+
   const reviews = await getAllAdminReviews();
   reviews.unshift(newReview);
 
@@ -280,7 +348,6 @@ export async function adminAddManualReview(data: {
 
 /**
  * Gets reviews specific to a product by ID.
- * Merges customer submitted reviews with dedicated seed reviews for this product.
  */
 export async function getProductReviews(
   productId: string,
@@ -293,7 +360,6 @@ export async function getProductReviews(
     return directMatches;
   }
 
-  // Generate 2-3 realistic tailored reviews if none exists yet for this product
   const defaultProductSeeds: Review[] = [
     {
       id: `prod-seed-1-${productId.slice(0, 6)}`,
@@ -422,7 +488,6 @@ export function getLocalizedReview(
 
   let body = rev.body_en?.trim();
   if (!body) {
-    // Graceful automatic beauty review translation for user-submitted reviews
     body = rev.body
       .replace(/اشتريت/g, "I purchased")
       .replace(/وكانت النتيجة مذهلة/g, "and the results were incredible")
@@ -441,7 +506,6 @@ export function getLocalizedReview(
       .replace(/ممتاز جداً/g, "Truly excellent")
       .replace(/بشرة نضرة/g, "glowing radiant skin");
 
-    // If still predominantly Arabic, supply polished organic testimonial
     if (/[\u0600-\u06FF]/.test(body)) {
       body =
         "Truly transformed my skin routine—noticeable natural glow, lightweight texture, and prompt delivery.";
@@ -451,7 +515,7 @@ export function getLocalizedReview(
 }
 
 /**
- * Adds a new review locally and persists to Supabase in the background.
+ * Adds a new review locally and persists to Firestore
  */
 export async function addReview(reviewData: {
   name: string;
@@ -477,7 +541,14 @@ export async function addReview(reviewData: {
     would_recommend: reviewData.would_recommend ?? true,
   };
 
-  // 1. Save to localStorage immediately
+  // 1. Save to Firestore
+  try {
+    await setDoc(doc(db, "reviews", newReview.id), newReview);
+  } catch (err) {
+    console.warn("[Add Review] Firestore save fallback:", err);
+  }
+
+  // 2. Save to localStorage immediately
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     const existing: Review[] = raw ? JSON.parse(raw) : [];
@@ -487,7 +558,7 @@ export async function addReview(reviewData: {
     console.warn("Failed to persist review locally:", err);
   }
 
-  // 2. Dispatch window event for immediate UI reaction across components
+  // 3. Dispatch event
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("so_beauty_review_added", { detail: newReview }));
   }

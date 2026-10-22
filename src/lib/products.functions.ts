@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAdminGuard } from "./admin-auth";
-import type { Database } from "@/types/database.types";
+import type { Database, Product } from "@/types/database.types";
 import { MOCK_PRODUCTS } from "./mock-products";
 import {
   encodeProductGallery,
@@ -8,6 +8,20 @@ import {
   extractProductGallery,
 } from "./product-images";
 import { encodeProductI18n, extractProductI18n } from "./product-localization";
+import { db } from "./firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  writeBatch,
+} from "firebase/firestore";
 
 export function attachMetadataToProduct(p: Product): Product {
   const gallery = extractProductGallery(p);
@@ -20,29 +34,72 @@ export function attachMetadataToProduct(p: Product): Product {
   };
 }
 
-function serverClient() {
-  return null;
+let hasCheckedSeed = false;
+
+/**
+ * Ensures Firestore has products, attempting write only when authenticated as admin
+ */
+async function ensureProductsSeeded(): Promise<void> {
+  if (hasCheckedSeed) return;
+  try {
+    const snap = await getDocs(collection(db, "products"));
+    if (snap.empty) {
+      // Only write to Firestore if admin credentials are authenticated
+      if (
+        auth.currentUser &&
+        (auth.currentUser.email === "mohsentiben@gmail.com" || auth.currentUser.emailVerified)
+      ) {
+        const batch = writeBatch(db);
+        for (const p of MOCK_PRODUCTS) {
+          const ref = doc(db, "products", p.id);
+          batch.set(ref, {
+            id: p.id,
+            name: p.name,
+            name_en: p.name_en || null,
+            category: p.category,
+            price: p.price,
+            original_price: p.original_price ?? null,
+            stock: p.stock,
+            image_url: p.image_url,
+            gallery_images: p.gallery_images || [],
+            description: p.description,
+            description_en: p.description_en || null,
+            is_featured: p.is_featured ?? false,
+            is_active: p.is_active ?? true,
+            created_at: p.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+        await batch.commit();
+      }
+    }
+    hasCheckedSeed = true;
+  } catch (err) {
+    // Non-blocking fallback for guest browsing
+    hasCheckedSeed = true;
+  }
 }
 
 export const listProducts = createServerFn({ method: "GET" })
   .validator((data: { category?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
-    const sb = serverClient();
-    if (sb) {
-      try {
-        let q = sb
-          .from("products")
-          .select("*")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-        if (data?.category) q = q.eq("category", data.category as never);
-        const { data: rows, error } = await q;
-        if (!error && rows && rows.length > 0) {
-          return (rows as Product[]).map(attachMetadataToProduct);
+    await ensureProductsSeeded();
+
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      if (!snap.empty) {
+        let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product);
+        rows = rows.filter((p) => p.is_active);
+        if (data?.category) {
+          rows = rows.filter((p) => p.category === data.category);
         }
-      } catch (err) {
-        console.warn("[Products] Supabase query failed, using in-memory fallback:", err);
+        rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        if (rows.length > 0) {
+          return rows.map(attachMetadataToProduct);
+        }
       }
+    } catch (err) {
+      console.warn("[Products] Firestore query fallback:", err);
     }
 
     // In-memory fallback
@@ -56,21 +113,16 @@ export const listProducts = createServerFn({ method: "GET" })
 export const getProduct = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    const sb = serverClient();
-    if (sb) {
-      try {
-        const { data: row, error } = await sb
-          .from("products")
-          .select("*")
-          .eq("id", data.id)
-          .eq("is_active", true)
-          .maybeSingle();
-        if (!error && row) {
-          return attachMetadataToProduct(row as Product);
+    try {
+      const snap = await getDoc(doc(db, "products", data.id));
+      if (snap.exists()) {
+        const row = { id: snap.id, ...snap.data() } as Product;
+        if (row.is_active) {
+          return attachMetadataToProduct(row);
         }
-      } catch (err) {
-        console.warn("[Products] Supabase getProduct query failed, using fallback:", err);
       }
+    } catch (err) {
+      console.warn("[Products] Firestore getProduct fallback:", err);
     }
 
     const found = MOCK_PRODUCTS.find((p) => p.id === data.id && p.is_active);
@@ -84,20 +136,16 @@ export const adminListAllProducts = createServerFn({ method: "GET" })
   .validator((data: { adminPin?: string } | undefined) => data ?? {})
   .handler(async ({ data }) => {
     await requireAdminGuard(data?.adminPin);
+    await ensureProductsSeeded();
 
-    const sb = serverClient();
-    if (sb) {
-      try {
-        const { data: rows, error } = await sb
-          .from("products")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (!error && rows && rows.length > 0) {
-          return (rows as Product[]).map(attachMetadataToProduct);
-        }
-      } catch (err) {
-        console.warn("[Admin Products] Supabase query failed, using fallback:", err);
+    try {
+      const snap = await getDocs(query(collection(db, "products"), orderBy("created_at", "desc")));
+      if (!snap.empty) {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product);
+        return rows.map(attachMetadataToProduct);
       }
+    } catch (err) {
+      console.warn("[Admin Products] Firestore query fallback:", err);
     }
     return MOCK_PRODUCTS.map(attachMetadataToProduct);
   });
@@ -131,23 +179,20 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
       inMem.updated_at = new Date().toISOString();
     }
 
-    // 2. Update database if connected
-    const sb = serverClient();
-    if (sb) {
-      try {
-        const updatePayload: Record<string, unknown> = {
-          updated_at: new Date().toISOString(),
-        };
-        if (data.stock !== undefined) updatePayload.stock = Math.max(0, data.stock);
-        if (data.price !== undefined) updatePayload.price = Math.max(0, data.price);
-        if (data.original_price !== undefined) updatePayload.original_price = data.original_price;
-        if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
-        if (data.is_featured !== undefined) updatePayload.is_featured = data.is_featured;
+    // 2. Update Firestore database
+    try {
+      const updatePayload: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (data.stock !== undefined) updatePayload.stock = Math.max(0, data.stock);
+      if (data.price !== undefined) updatePayload.price = Math.max(0, data.price);
+      if (data.original_price !== undefined) updatePayload.original_price = data.original_price;
+      if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
+      if (data.is_featured !== undefined) updatePayload.is_featured = data.is_featured;
 
-        await sb.from("products").update(updatePayload).eq("id", data.id);
-      } catch (err) {
-        console.warn("[Admin Update Product] DB error:", err);
-      }
+      await updateDoc(doc(db, "products", data.id), updatePayload);
+    } catch (err) {
+      console.warn("[Admin Update Product] Firestore error:", err);
     }
 
     return { ok: true, product: inMem };
@@ -217,30 +262,30 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
       updated_at: now,
     };
 
-    // 1. Insert in-memory at top of products list
+    // 1. Insert in-memory
     MOCK_PRODUCTS.unshift(newProduct);
 
-    // 2. Insert into database if available
-    const sb = serverClient();
-    if (sb) {
-      try {
-        await sb.from("products").insert({
-          id: newProduct.id,
-          name: newProduct.name,
-          category: newProduct.category,
-          price: newProduct.price,
-          original_price: newProduct.original_price,
-          stock: newProduct.stock,
-          image_url: newProduct.image_url,
-          description: newProduct.description,
-          is_featured: newProduct.is_featured,
-          is_active: newProduct.is_active,
-          created_at: newProduct.created_at,
-          updated_at: newProduct.updated_at,
-        });
-      } catch (err) {
-        console.warn("[Admin Create Product] Database insert fallback to in-memory:", err);
-      }
+    // 2. Insert into Firestore
+    try {
+      await setDoc(doc(db, "products", newProduct.id), {
+        id: newProduct.id,
+        name: newProduct.name,
+        name_en: newProduct.name_en || null,
+        category: newProduct.category,
+        price: newProduct.price,
+        original_price: newProduct.original_price,
+        stock: newProduct.stock,
+        image_url: newProduct.image_url,
+        gallery_images: newProduct.gallery_images || [],
+        description: newProduct.description,
+        description_en: newProduct.description_en || null,
+        is_featured: newProduct.is_featured,
+        is_active: newProduct.is_active,
+        created_at: newProduct.created_at,
+        updated_at: newProduct.updated_at,
+      });
+    } catch (err) {
+      console.warn("[Admin Create Product] Firestore error:", err);
     }
 
     return { ok: true, product: newProduct };
@@ -362,27 +407,29 @@ export const adminFullUpdateProduct = createServerFn({ method: "POST" })
       MOCK_PRODUCTS.unshift(updated);
     }
 
-    const sb = serverClient();
-    if (sb) {
-      try {
-        await sb
-          .from("products")
-          .update({
-            name: updated.name,
-            category: updated.category,
-            price: updated.price,
-            original_price: updated.original_price,
-            stock: updated.stock,
-            image_url: updated.image_url,
-            description: updated.description,
-            is_featured: updated.is_featured,
-            is_active: updated.is_active,
-            updated_at: updated.updated_at,
-          })
-          .eq("id", data.id);
-      } catch (err) {
-        console.warn("[Admin Full Update Product] Database update fallback to in-memory:", err);
-      }
+    try {
+      await setDoc(
+        doc(db, "products", updated.id),
+        {
+          id: updated.id,
+          name: updated.name,
+          name_en: updated.name_en || null,
+          category: updated.category,
+          price: updated.price,
+          original_price: updated.original_price,
+          stock: updated.stock,
+          image_url: updated.image_url,
+          gallery_images: updated.gallery_images || [],
+          description: updated.description,
+          description_en: updated.description_en || null,
+          is_featured: updated.is_featured,
+          is_active: updated.is_active,
+          updated_at: updated.updated_at,
+        },
+        { merge: true },
+      );
+    } catch (err) {
+      console.warn("[Admin Full Update Product] Firestore error:", err);
     }
 
     return { ok: true, product: updated };
@@ -414,26 +461,26 @@ export const adminDuplicateProduct = createServerFn({ method: "POST" })
 
     MOCK_PRODUCTS.unshift(duplicated);
 
-    const sb = serverClient();
-    if (sb) {
-      try {
-        await sb.from("products").insert({
-          id: duplicated.id,
-          name: duplicated.name,
-          category: duplicated.category,
-          price: duplicated.price,
-          original_price: duplicated.original_price,
-          stock: duplicated.stock,
-          image_url: duplicated.image_url,
-          description: duplicated.description,
-          is_featured: duplicated.is_featured,
-          is_active: duplicated.is_active,
-          created_at: duplicated.created_at,
-          updated_at: duplicated.updated_at,
-        });
-      } catch (err) {
-        console.warn("[Admin Duplicate Product] Database insert fallback to in-memory:", err);
-      }
+    try {
+      await setDoc(doc(db, "products", duplicated.id), {
+        id: duplicated.id,
+        name: duplicated.name,
+        name_en: duplicated.name_en || null,
+        category: duplicated.category,
+        price: duplicated.price,
+        original_price: duplicated.original_price,
+        stock: duplicated.stock,
+        image_url: duplicated.image_url,
+        gallery_images: duplicated.gallery_images || [],
+        description: duplicated.description,
+        description_en: duplicated.description_en || null,
+        is_featured: duplicated.is_featured,
+        is_active: duplicated.is_active,
+        created_at: duplicated.created_at,
+        updated_at: duplicated.updated_at,
+      });
+    } catch (err) {
+      console.warn("[Admin Duplicate Product] Firestore error:", err);
     }
 
     return { ok: true, product: duplicated };
@@ -452,13 +499,10 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
       MOCK_PRODUCTS.splice(idx, 1);
     }
 
-    const sb = serverClient();
-    if (sb) {
-      try {
-        await sb.from("products").delete().eq("id", data.id);
-      } catch (err) {
-        console.warn("[Admin Delete Product] Database delete fallback to in-memory:", err);
-      }
+    try {
+      await deleteDoc(doc(db, "products", data.id));
+    } catch (err) {
+      console.warn("[Admin Delete Product] Firestore error:", err);
     }
 
     return { ok: true, id: data.id };

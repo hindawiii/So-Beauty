@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "mohsentiben@gmail.com" ||
+        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "admin")
+      );
+    }
+
+    function isValidId(docId) {
+      return docId is string && docId.size() > 0 && docId.size() <= 128 && docId.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidProductCreate(data) {
+      return data.keys().hasAll(['name', 'category', 'price', 'stock', 'is_active', 'created_at']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+             data.category in ['fragrance', 'hair', 'makeup', 'skincare'] &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number && data.stock >= 0 &&
+             data.is_active is bool &&
+             data.created_at is string;
+    }
+
+    function isValidProductUpdate(incoming, existing) {
+      return incoming.diff(existing).affectedKeys().hasOnly([
+               'name', 'name_en', 'description', 'description_en', 'category',
+               'price', 'original_price', 'stock', 'image_url', 'gallery_images',
+               'is_active', 'is_featured', 'updated_at'
+             ]) &&
+             incoming.name is string && incoming.name.size() >= 1 && incoming.name.size() <= 200 &&
+             incoming.category in ['fragrance', 'hair', 'makeup', 'skincare'] &&
+             incoming.price is number && incoming.price >= 0 &&
+             incoming.stock is number && incoming.stock >= 0;
+    }
+
+    function isValidOrderCreate(data) {
+      return data.keys().hasAll(['total', 'status', 'full_name', 'phone', 'shipping_address', 'city', 'order_items', 'created_at']) &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] &&
+             data.full_name is string && data.full_name.size() >= 2 && data.full_name.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 25 &&
+             data.shipping_address is string && data.shipping_address.size() >= 5 && data.shipping_address.size() <= 500 &&
+             data.city is string && data.city.size() >= 2 && data.city.size() <= 100 &&
+             data.order_items is list && data.order_items.size() >= 1 && data.order_items.size() <= 50 &&
+             data.created_at is string &&
+             (data.user_id == null || (isSignedIn() && data.user_id == request.auth.uid));
+    }
+
+    function isValidReviewCreate(data) {
+      return data.keys().hasAll(['name', 'rating', 'body', 'is_approved', 'created_at']) &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.body is string && data.body.size() >= 2 && data.body.size() <= 1000 &&
+             data.is_approved is bool &&
+             data.created_at is string;
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Catalog Products: Public browse, Admin curate
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isValidId(productId) && isAdmin() && isValidProductCreate(request.resource.data);
+      allow update: if isValidId(productId) && isAdmin() && isValidProductUpdate(request.resource.data, resource.data);
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    // Customer Orders: Anyone can create order (guests & signed in), customers view own, admins view all
+    match /orders/{orderId} {
+      allow create: if isValidId(orderId) && isValidOrderCreate(request.resource.data);
+      allow get: if isValidId(orderId) && (
+        isAdmin() ||
+        (isSignedIn() && resource.data.user_id == request.auth.uid) ||
+        resource.data.user_id == null
+      );
+      allow list: if isAdmin() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow update: if isValidId(orderId) && isAdmin();
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // User Profiles
+    match /profiles/{userId} {
+      allow get: if isValidId(userId) && (isAdmin() || (isSignedIn() && request.auth.uid == userId));
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isSignedIn() && request.auth.uid == userId;
+      allow update: if isValidId(userId) && (isAdmin() || (isSignedIn() && request.auth.uid == userId));
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && (resource.data.is_approved == true || isAdmin());
+      allow list: if resource.data.is_approved == true || isAdmin();
+      allow create: if isValidId(reviewId) && isValidReviewCreate(request.resource.data);
+      allow update: if isValidId(reviewId) && isAdmin();
+      allow delete: if isValidId(reviewId) && isAdmin();
+    }
+  }
+}

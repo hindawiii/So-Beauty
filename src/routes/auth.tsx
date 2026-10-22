@@ -97,10 +97,24 @@ function AuthPage() {
   }
 
   async function google() {
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (res.error) {
+    try {
+      const { data, error } = await authClient.auth.signInWithGoogle();
+      if (error) {
+        const res = await lovable.auth.signInWithOAuth("google", {
+          redirect_uri: window.location.origin,
+        });
+        if (res.error) {
+          toast.error(
+            language === "ar"
+              ? "تعذّر تسجيل الدخول بواسطة Google حالياً"
+              : "Unable to sign in with Google right now",
+          );
+        }
+      } else if (data?.user) {
+        toast.success(t("auth.loginSuccessToast"));
+        navigate({ to: redirect && redirect.startsWith("/") ? redirect : "/", replace: true });
+      }
+    } catch {
       toast.error(
         language === "ar"
           ? "تعذّر تسجيل الدخول بواسطة Google حالياً"
