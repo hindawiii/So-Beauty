@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { X, GripVertical, Send, Sparkles, Minus, CheckCircle2 } from "lucide-react";
 import { useStoreSettings } from "@/context/StoreSettingsContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -16,25 +17,74 @@ export function WhatsAppSupportButton() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<string>("");
+  const [windowDimensions, setWindowDimensions] = useState({ width: 390, height: 844 });
+  const [showTeaser, setShowTeaser] = useState(false);
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
 
-  const quickInquiries = useMemo(
-    () =>
-      isAr
+  // Safely retrieve router pathname for smart context awareness
+  const routerState = useRouterState();
+  const pathname = routerState?.location?.pathname || "/";
+
+  // Context-aware dynamic inquiries based on current page
+  const quickInquiries = useMemo(() => {
+    if (pathname.includes("/products/")) {
+      return isAr
         ? [
-            { id: "skin", text: "استشارة مجانية لنوع بشرتي 🧴" },
-            { id: "shipping", text: "استفسار عن الشحن وموعد التوصيل 🚚" },
-            { id: "offers", text: "الاستفسار عن البوكسات والعروض 🔥" },
+            { id: "product-usage", text: "استفسار عن طريقة استخدام هذا المنتج 🧴" },
+            { id: "product-skin", text: "هل يناسب نوع بشرتي ومشاكلها؟ 🌸" },
+            { id: "shipping", text: "موعد التوصيل والشحن لمدينتي 🚚" },
           ]
         : [
-            { id: "skin", text: "Free consultation for my skin type 🧴" },
-            { id: "shipping", text: "Inquiry about shipping & delivery 🚚" },
-            { id: "offers", text: "Inquiry about sets & hot offers 🔥" },
-          ],
-    [isAr],
-  );
+            { id: "product-usage", text: "How to use this product for best results? 🧴" },
+            { id: "product-skin", text: "Is it suitable for my skin type? 🌸" },
+            { id: "shipping", text: "Delivery schedule and shipping cost 🚚" },
+          ];
+    }
+
+    if (pathname.includes("/cart") || pathname.includes("/checkout")) {
+      return isAr
+        ? [
+            { id: "checkout-help", text: "مساعدة في إتمام الطلب وتأكيد الحجز 🛍️" },
+            { id: "payment-options", text: "استفسار عن الدفع عند الاستلام 💵" },
+            { id: "shipping-speed", text: "هل يتوفر شحن سريع وفوري؟ ⚡" },
+          ]
+        : [
+            { id: "checkout-help", text: "Need help completing my order 🛍️" },
+            { id: "payment-options", text: "Cash on delivery details 💵" },
+            { id: "shipping-speed", text: "Express same-day delivery options ⚡" },
+          ];
+    }
+
+    return isAr
+      ? [
+          { id: "skin", text: "استشارة مجانية لنوع بشرتي 🧴" },
+          { id: "shipping", text: "استفسار عن الشحن وموعد التوصيل 🚚" },
+          { id: "offers", text: "الاستفسار عن البوكسات والعروض 🔥" },
+        ]
+      : [
+          { id: "skin", text: "Free consultation for my skin type 🧴" },
+          { id: "shipping", text: "Inquiry about shipping & delivery 🚚" },
+          { id: "offers", text: "Inquiry about sets & hot offers 🔥" },
+        ];
+  }, [pathname, isAr]);
+
+  // Context-aware dynamic teaser message
+  const teaserMessage = useMemo(() => {
+    if (pathname.includes("/products/")) {
+      return isAr
+        ? "استشارة فورية حول طريقة الاستخدام والنتائج؟ ✨"
+        : "Questions about usage & results? ✨";
+    }
+    if (pathname.includes("/cart") || pathname.includes("/checkout")) {
+      return isAr ? "مساعدة في إتمام طلبكِ وحجز التوصيل 🛍️" : "Help completing your order? 🛍️";
+    }
+    return isAr
+      ? "استشارة مجانية لبشرتكِ مع خبيرتنا الآن 🌸"
+      : "Free skin consultation with our expert 🌸";
+  }, [pathname, isAr]);
 
   // Position state: coordinates in pixels from top-left of viewport
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 500 });
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 20, y: 600 });
   const [dockSide, setDockSide] = useState<"left" | "right">("left");
 
   // Drag tracking refs
@@ -51,20 +101,20 @@ export function WhatsAppSupportButton() {
   // Initialize position and saved preference on client mount
   useEffect(() => {
     setMounted(true);
-    const winWidth = window.innerWidth;
-    const winHeight = window.innerHeight;
+    const winWidth = typeof window !== "undefined" ? window.innerWidth : 390;
+    const winHeight = typeof window !== "undefined" ? window.innerHeight : 844;
+    setWindowDimensions({ width: winWidth, height: winHeight });
 
-    let initialX = 20; // Default to left side in RTL (end)
-    let initialY = winHeight - 110;
+    let initialX = isRTL ? 20 : winWidth - 76;
+    let initialY = Math.max(120, winHeight - 110);
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-          // Validate within current window boundaries
           const clampedX = Math.min(Math.max(16, parsed.x), winWidth - 76);
-          const clampedY = Math.min(Math.max(70, parsed.y), winHeight - 90);
+          const clampedY = Math.min(Math.max(75, parsed.y), winHeight - 95);
           initialX = clampedX;
           initialY = clampedY;
         }
@@ -80,19 +130,70 @@ export function WhatsAppSupportButton() {
 
     setPosition({ x: initialX, y: initialY });
     setDockSide(initialX < winWidth / 2 ? "left" : "right");
-  }, []);
+  }, [isRTL]);
 
-  // Handle snapping on resize
+  // Handle smart teaser timer: pops up after 1.8s, automatically dissolves after 3.5s
+  useEffect(() => {
+    if (!mounted || isMinimized || isExpanded) return;
+
+    const showTimer = setTimeout(() => {
+      setShowTeaser(true);
+
+      const hideTimer = setTimeout(() => {
+        setShowTeaser(false);
+      }, 3500);
+
+      return () => clearTimeout(hideTimer);
+    }, 1800);
+
+    return () => clearTimeout(showTimer);
+  }, [mounted, pathname, isMinimized, isExpanded]);
+
+  // Handle smart scroll behavior: dismiss teaser & subtly soften button on fast scroll down
+  useEffect(() => {
+    if (!mounted) return;
+
+    let lastScrollY = window.scrollY;
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScroll = () => {
+      // Instantly dismiss any greeting teaser on scroll
+      setShowTeaser(false);
+
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsScrollingDown(true);
+      } else {
+        setIsScrollingDown(false);
+      }
+      lastScrollY = currentScrollY;
+
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        setIsScrollingDown(false);
+      }, 400);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [mounted]);
+
+  // Handle snapping on resize and track dimensions
   useEffect(() => {
     if (!mounted) return;
 
     const handleResize = () => {
       const winWidth = window.innerWidth;
       const winHeight = window.innerHeight;
+      setWindowDimensions({ width: winWidth, height: winHeight });
 
       setPosition((prev) => {
-        const targetX = prev.x < winWidth / 2 ? 16 : winWidth - 76;
-        const targetY = Math.min(Math.max(70, prev.y), winHeight - 90);
+        const isNearLeft = prev.x < winWidth / 2;
+        const targetX = isNearLeft ? 16 : Math.max(16, winWidth - 76);
+        const targetY = Math.min(Math.max(75, prev.y), winHeight - 95);
         return { x: targetX, y: targetY };
       });
     };
@@ -103,8 +204,8 @@ export function WhatsAppSupportButton() {
 
   // Pointer Down (Mouse or Touch)
   const handlePointerDown = (e: React.PointerEvent) => {
-    // Only respond to primary button
     if (e.button !== 0) return;
+    setShowTeaser(false);
 
     dragRef.current = {
       startX: e.clientX,
@@ -125,19 +226,20 @@ export function WhatsAppSupportButton() {
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
 
-    // Register movement if moved more than 5px
-    if (!dragRef.current.hasMoved && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+    if (!dragRef.current.hasMoved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
       dragRef.current.hasMoved = true;
+      setShowTeaser(false);
     }
 
     if (dragRef.current.hasMoved) {
-      const winWidth = window.innerWidth;
-      const winHeight = window.innerHeight;
+      const winWidth = windowDimensions.width;
+      const winHeight = windowDimensions.height;
 
-      const newX = Math.min(Math.max(8, dragRef.current.initialPosX + dx), winWidth - 68);
-      const newY = Math.min(Math.max(60, dragRef.current.initialPosY + dy), winHeight - 80);
+      const newX = Math.min(Math.max(12, dragRef.current.initialPosX + dx), winWidth - 72);
+      const newY = Math.min(Math.max(75, dragRef.current.initialPosY + dy), winHeight - 90);
 
       setPosition({ x: newX, y: newY });
+      setDockSide(newX < winWidth / 2 ? "left" : "right");
     }
   };
 
@@ -153,12 +255,11 @@ export function WhatsAppSupportButton() {
     }
 
     if (dragRef.current.hasMoved) {
-      // Snap horizontally to nearest screen edge
-      const winWidth = window.innerWidth;
-      const winHeight = window.innerHeight;
+      const winWidth = windowDimensions.width;
+      const winHeight = windowDimensions.height;
       const isNearLeft = position.x < winWidth / 2;
-      const snappedX = isNearLeft ? 16 : winWidth - 72;
-      const clampedY = Math.min(Math.max(70, position.y), winHeight - 90);
+      const snappedX = isNearLeft ? 16 : Math.max(16, winWidth - 76);
+      const clampedY = Math.min(Math.max(75, position.y), winHeight - 95);
 
       const finalPos = { x: snappedX, y: clampedY };
       setPosition(finalPos);
@@ -170,7 +271,6 @@ export function WhatsAppSupportButton() {
         // ignore
       }
     } else {
-      // Was a pure click (no drag)
       if (isMinimized) {
         setIsMinimized(false);
         try {
@@ -187,9 +287,26 @@ export function WhatsAppSupportButton() {
   const toggleMinimize = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsExpanded(false);
+    setShowTeaser(false);
     setIsMinimized(true);
     try {
       localStorage.setItem(STORAGE_MINIMIZED_KEY, "true");
+    } catch {
+      // ignore
+    }
+  };
+
+  const resetPosition = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const winWidth = windowDimensions.width;
+    const winHeight = windowDimensions.height;
+    const defaultX = isRTL ? 16 : winWidth - 76;
+    const defaultY = winHeight - 110;
+    const finalPos = { x: defaultX, y: defaultY };
+    setPosition(finalPos);
+    setDockSide(defaultX < winWidth / 2 ? "left" : "right");
+    try {
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -210,19 +327,63 @@ export function WhatsAppSupportButton() {
     [selectedInquiry, getWhatsAppUrl, isAr],
   );
 
-  // SSR Fallback (before client hydration)
+  // Calculate Popover Position relative to the <aside> container
+  const popoverLayout = useMemo(() => {
+    const winWidth = windowDimensions.width;
+    const winHeight = windowDimensions.height;
+
+    const popoverWidth = Math.min(340, winWidth - 28);
+    const popoverHeight = 440;
+
+    let targetLeftInViewport: number;
+    if (dockSide === "left") {
+      targetLeftInViewport = Math.max(14, Math.min(position.x, winWidth - popoverWidth - 14));
+    } else {
+      targetLeftInViewport = Math.max(
+        14,
+        Math.min(position.x + 58 - popoverWidth, winWidth - popoverWidth - 14),
+      );
+    }
+
+    const relativeX = targetLeftInViewport - position.x;
+
+    const spaceAbove = position.y - 75;
+    const openDownwards = spaceAbove < 380 && position.y + 60 + popoverHeight <= winHeight - 20;
+
+    let relativeY: number;
+    if (openDownwards) {
+      relativeY = 66;
+    } else {
+      const idealTopInViewport = position.y - popoverHeight - 12;
+      const clampedTopInViewport = Math.max(75, idealTopInViewport);
+      relativeY = clampedTopInViewport - position.y;
+    }
+
+    return {
+      relativeX,
+      relativeY,
+      width: popoverWidth,
+      openDownwards,
+    };
+  }, [position.x, position.y, dockSide, windowDimensions.width, windowDimensions.height]);
+
+  // SSR Fallback: Identical circular 58px organic bubble to eliminate layout shifts & frozen text
   if (!mounted) {
     return (
       <aside
         suppressHydrationWarning
         aria-label={isAr ? "الدعم السريع عبر واتساب" : "Quick Support via WhatsApp"}
-        className="fixed bottom-6 end-6 z-40"
+        className="fixed bottom-6 end-6 z-50 select-none pointer-events-auto"
       >
-        <div className="flex items-center gap-2.5 bg-emerald-600 text-white px-4 py-3 rounded-full shadow-lg">
-          <WhatsAppEmblemIcon size={20} className="text-white" />
-          <span suppressHydrationWarning className="text-sm font-medium">
-            {isAr ? "واتساب سو بيوتي" : "So Beauty WhatsApp"}
+        <div className="relative flex items-center justify-center">
+          <span className="absolute top-1 end-1 z-10 flex h-3.5 w-3.5 pointer-events-none">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-white" />
           </span>
+          <WhatsAppOrganicIcon
+            size={58}
+            className="filter drop-shadow-md hover:drop-shadow-xl transition-all"
+          />
         </div>
       </aside>
     );
@@ -232,42 +393,78 @@ export function WhatsAppSupportButton() {
     <aside
       suppressHydrationWarning
       aria-label={isAr ? "الدعم السريع عبر واتساب" : "Quick Support via WhatsApp"}
-      className="fixed z-50 select-none touch-none"
+      className="fixed z-50 select-none"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
     >
-      {/* Quick Chat Popover Window */}
+      {/* Smart Contextual Teaser Tooltip: Gentle 3.5s speech bubble */}
+      {showTeaser && !isExpanded && !isMinimized && !isDragging && (
+        <div
+          role="status"
+          aria-live="polite"
+          onClick={() => {
+            setShowTeaser(false);
+            setIsExpanded(true);
+          }}
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center gap-2 bg-slate-900/95 text-white backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-xl border border-white/15 text-xs font-medium max-w-[240px] animate-in fade-in zoom-in-95 duration-200 transition-all z-40 hover:bg-slate-900"
+          style={{
+            left: dockSide === "left" ? "66px" : "auto",
+            right: dockSide === "right" ? "66px" : "auto",
+          }}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+          <span className="truncate leading-relaxed">{teaserMessage}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTeaser(false);
+            }}
+            className="ms-1 p-0.5 text-slate-400 hover:text-white rounded-md transition-colors cursor-pointer shrink-0"
+            title={isAr ? "إغلاق التلميح" : "Dismiss"}
+            aria-label={isAr ? "إغلاق التلميح" : "Dismiss"}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Quick Chat Popover Window with Mathematical Viewport Clamping */}
       {isExpanded && !isMinimized && (
         <div
-          className={`absolute bottom-16 sm:bottom-20 w-[90vw] sm:w-84 max-w-sm bg-card border border-slate-200/90 rounded-3xl shadow-2xl p-5 z-50 text-slate-800 transition-all duration-300 animate-in fade-in zoom-in-95 ${
-            dockSide === "left" ? "start-0" : "end-0"
-          }`}
+          className="absolute bg-card border border-slate-200/90 rounded-3xl shadow-2xl p-5 z-50 text-slate-800 transition-all duration-300 animate-in fade-in zoom-in-95 touch-auto"
           style={{
-            transformOrigin: dockSide === "left" ? "bottom left" : "bottom right",
+            left: `${popoverLayout.relativeX}px`,
+            top: `${popoverLayout.relativeY}px`,
+            width: `${popoverLayout.width}px`,
+            maxWidth: "calc(100vw - 28px)",
+            transformOrigin: `${dockSide === "left" ? "left" : "right"} ${
+              popoverLayout.openDownwards ? "top" : "bottom"
+            }`,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                 <WhatsAppOrganicIcon size={28} showShadow={false} />
               </div>
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5 truncate">
                   {isAr ? "خبيرة العناية So Beauty" : "So Beauty Care Specialist"}
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 </h3>
-                <p className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+                <p className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold truncate">
                   {isAr ? "متصلة للرد على استفساركِ الآن" : "Online to answer your inquiry"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 onClick={toggleMinimize}
@@ -292,14 +489,16 @@ export function WhatsAppSupportButton() {
           {/* Friendly Greeting Bubble */}
           <div className="my-3.5 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-100 text-xs text-slate-700 leading-relaxed">
             <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>
                 {isAr ? "أهلاً بكِ في عائلة سو بيوتي 🌸" : "Welcome to the So Beauty family 🌸"}
               </span>
             </div>
-            {isAr
-              ? "كيف يمكننا مساعدتكِ اليوم؟ اختاري موضوع استفساركِ أو تواصلي معنا مباشرة عبر واتساب."
-              : "How can we help you today? Choose an inquiry topic or connect directly via WhatsApp."}
+            <p className="m-0 text-slate-600">
+              {isAr
+                ? "كيف يمكننا مساعدتكِ اليوم؟ اختاري موضوع استفساركِ أو تواصلي معنا مباشرة عبر واتساب."
+                : "How can we help you today? Choose an inquiry topic or connect directly via WhatsApp."}
+            </p>
           </div>
 
           {/* Quick Inquiry Options */}
@@ -321,11 +520,11 @@ export function WhatsAppSupportButton() {
                     : "bg-white hover:bg-emerald-50/60 border-slate-200/80 text-slate-700"
                 }`}
               >
-                <span>{q.text}</span>
+                <span className="truncate">{q.text}</span>
                 <Send
-                  className={`w-3.5 h-3.5 transition-transform rtl:rotate-180 ${
-                    selectedInquiry === q.text ? "text-white" : "text-slate-500"
-                  }`}
+                  className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                    isRTL ? "rotate-180" : ""
+                  } ${selectedInquiry === q.text ? "text-white" : "text-slate-500"}`}
                 />
               </button>
             ))}
@@ -340,15 +539,20 @@ export function WhatsAppSupportButton() {
             <span>{isAr ? "محادثة مباشرة على واتساب" : "Direct Chat on WhatsApp"}</span>
           </Button>
 
-          {/* Footer hint */}
-          <p className="text-xs text-center text-slate-700 dark:text-slate-200 font-semibold mt-2.5 flex items-center justify-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>
-              {isAr
-                ? "رد فوري • يمكنكِ سحب الزر لأي مكان في الشاشة"
-                : "Instant reply • You can drag this bubble anywhere"}
+          {/* Footer hint & Reset position button */}
+          <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
+            <span className="flex items-center gap-1 text-slate-600">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{isAr ? "رد سريع وفوري" : "Instant direct reply"}</span>
             </span>
-          </p>
+            <button
+              type="button"
+              onClick={resetPosition}
+              className="text-slate-400 hover:text-emerald-700 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              {isAr ? "إعادة ضبط الموضع" : "Reset position"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -359,9 +563,9 @@ export function WhatsAppSupportButton() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className={`group relative flex items-center cursor-grab active:cursor-grabbing transition-transform ${
+        className={`group relative flex items-center cursor-grab active:cursor-grabbing transition-all touch-none duration-200 ${
           isDragging ? "scale-105 opacity-95" : "hover:scale-105"
-        }`}
+        } ${isScrollingDown ? "opacity-65 scale-90" : "opacity-100 scale-100"}`}
         title={
           isAr
             ? "اسحبي الزر لأي مكان، أو انقري لفتح المحادثة"

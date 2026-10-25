@@ -8,6 +8,21 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   nitro: {
+    rollupConfig: {
+      onwarn(
+        warning: { code?: string; message?: string },
+        warn: (w: { code?: string; message?: string }) => void,
+      ) {
+        if (
+          warning?.code === "MODULE_LEVEL_DIRECTIVE" ||
+          String(warning?.message || "").includes("MODULE_LEVEL_DIRECTIVE") ||
+          String(warning?.message || "").includes("use client")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
+    },
     output: {
       dir: "dist",
       serverDir: "dist/server",
@@ -25,10 +40,14 @@ export default defineConfig({
     build: {
       outDir: "dist",
       rollupOptions: {
-        onwarn(warning, warn) {
+        onwarn(
+          warning: { code?: string; message?: string },
+          warn: (w: { code?: string; message?: string }) => void,
+        ) {
           if (
-            warning.code === "MODULE_LEVEL_DIRECTIVE" &&
-            warning.message?.includes('"use client"')
+            warning?.code === "MODULE_LEVEL_DIRECTIVE" ||
+            String(warning?.message || "").includes("MODULE_LEVEL_DIRECTIVE") ||
+            String(warning?.message || "").includes("use client")
           ) {
             return;
           }

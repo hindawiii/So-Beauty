@@ -178,11 +178,11 @@ export function SiteHeader() {
         {/* Main Row: Optimized Spacious Layout across Mobile, Tablet, and Desktop */}
         <div className="container mx-auto px-2.5 sm:px-6 h-15 sm:h-16 md:h-20 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
           {/* Start/Right (RTL): Mobile Hamburger Menu Button + Brand Identity */}
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 min-w-0">
             {/* Mobile / Tablet Menu Toggle Button (< md) - Placed at the START (Right in Arabic RTL) */}
             <button
               type="button"
-              className="md:hidden flex items-center justify-center w-10 h-10 min-w-[44px] min-h-[44px] rounded-full hover:bg-muted text-slate-800 dark:text-slate-100 transition-colors cursor-pointer shrink-0 active:scale-95"
+              className="md:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 min-w-[38px] min-h-[38px] rounded-full hover:bg-muted text-slate-800 dark:text-slate-100 transition-colors cursor-pointer shrink-0 active:scale-95"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
               title={open ? "إغلاق القائمة" : "فتح القائمة"}
@@ -219,7 +219,7 @@ export function SiteHeader() {
                       : settings.storeName_en || "So Beauty"}
                   </span>
                   <span
-                    className="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 tracking-normal leading-tight mt-0.5 truncate"
+                    className="text-[9.5px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 tracking-wider uppercase leading-tight mt-0.5 truncate"
                     style={{
                       fontFamily:
                         language === "ar"
@@ -229,7 +229,7 @@ export function SiteHeader() {
                   >
                     {language === "ar"
                       ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
-                      : settings.tagline_en || "Pure Botanical Care"}
+                      : settings.tagline_en || "Botanical Care"}
                   </span>
                 </div>
               )}
@@ -257,12 +257,12 @@ export function SiteHeader() {
           <div className="flex-1 md:hidden" />
 
           {/* End/Left (RTL): Smart Unified Control Capsule Dock (Search, Wishlist, Cart, User) */}
-          <div className="flex items-center p-1 sm:p-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 shadow-2xs gap-1 sm:gap-1.5 shrink-0">
+          <div className="flex items-center p-0.5 sm:p-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 shadow-2xs gap-0.5 sm:gap-1.5 shrink-0">
             {/* 1. Luxe Search Lens Icon (Shown on mobile & tablets < md inside capsule) */}
             <button
               type="button"
               onClick={() => setIsSearchModalOpen(true)}
-              className="md:hidden relative flex items-center justify-center w-8.5 h-8.5 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
+              className="md:hidden relative flex items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 min-w-[32px] min-h-[32px] rounded-full bg-background/80 hover:bg-primary/10 text-slate-700 dark:text-slate-200 hover:text-primary transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("common.search")}
               title={t("common.search")}
             >
@@ -274,7 +274,7 @@ export function SiteHeader() {
             <Link
               to="/wishlist"
               onClick={triggerWishlistHop}
-              className="relative flex items-center justify-center w-8.5 h-8.5 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] rounded-full bg-background/80 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-700 dark:text-slate-200 hover:text-rose-600 transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
+              className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 min-w-[32px] min-h-[32px] rounded-full bg-background/80 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-700 dark:text-slate-200 hover:text-rose-600 transition-all duration-200 cursor-pointer group shrink-0 active:scale-95"
               aria-label={t("header.wishlistCount")}
               title={t("header.wishlistCount")}
             >

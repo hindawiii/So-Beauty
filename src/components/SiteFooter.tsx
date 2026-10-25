@@ -121,7 +121,7 @@ export function SiteFooter() {
                   >
                     {language === "ar"
                       ? settings.storeName.split("-")[1]?.trim() || "So Beauty"
-                      : settings.tagline_en || "Pure Botanical Care"}
+                      : settings.tagline_en || "Botanical Care"}
                   </p>
                 </div>
               )}

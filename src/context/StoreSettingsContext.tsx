@@ -128,7 +128,7 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   storeName: "سو بيوتي - So Beauty",
   storeName_en: "So Beauty",
   tagline: "سو بيوتي · عناية طبيعية",
-  tagline_en: "Pure Botanical Skincare",
+  tagline_en: "Botanical Care",
   whatsappNumber: "249900776688",
   supportPhone: "+249 900 776 688",
   supportEmail: "sobeauty.one@gmail.com",
@@ -152,12 +152,11 @@ export const GOLDEN_SO_BEAUTY_SETTINGS: StoreBrandingSettings = {
   isDemoMode: false,
   adminPin: "2026",
 
-  heroTitle: "جمالكِ الطبيعي يبدأ من هنا",
-  heroTitle_en: "Natural Beauty Starts Here",
-  heroSubtitle:
-    "اكتشفي مجموعة So Beauty من منتجات العناية الطبيعية بالبشرة — نقاء نباتي وإشراقة تدوم.",
+  heroTitle: "نقاء الطبيعة، وفخامة العناية التي تليق بنضارتكِ",
+  heroTitle_en: "Pure Botanical Care for Your Radiant Skin",
+  heroSubtitle: "مستخلصات عشبية وزيوت أصلية 100% لبشرة نضرة وصحية — جودة معتمدة ودفع عند الاستلام.",
   heroSubtitle_en:
-    "Discover the So Beauty collection of pure botanical skincare — clean botanicals, radiant glow that lasts.",
+    "100% pure botanical formulas and certified skincare crafted for lasting radiance with fast delivery.",
   heroPrimaryCtaText: "تسوّق الآن",
   heroPrimaryCtaText_en: "Shop Now",
   heroSecondaryCtaText: "شاهد العروض",

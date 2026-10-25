@@ -20,7 +20,10 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { ProductCard } from "@/components/ProductCard";
-import { ProductImageViewer } from "@/components/ProductImageViewer";
+import { ProductGalleryViewer } from "@/components/product/ProductGalleryViewer";
+import { ProductQuantitySavingsTiers } from "@/components/product/ProductQuantitySavingsTiers";
+import { ProductRoutineUpsell } from "@/components/product/ProductRoutineUpsell";
+import { ProductStickyBuyBar } from "@/components/product/ProductStickyBuyBar";
 import { PaymentWalletsBadges } from "@/components/PaymentWalletsBadges";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -211,8 +214,6 @@ function Detail() {
   const localizedCategory = getLocalizedCategory(p.category || "عناية متكاملة", language);
 
   const galleryImages = useMemo(() => extractProductGallery(p), [p]);
-  const [selectedImgIndex, setSelectedImgIndex] = useState(0);
-  const activeImage = galleryImages[selectedImgIndex] || resolveProductImage(p.image_url);
 
   const price = Number(p.price);
   const original = p.original_price != null ? Number(p.original_price) : null;
@@ -289,99 +290,14 @@ function Detail() {
     <div className="space-y-14">
       {/* Product Hero Grid */}
       <div className="grid md:grid-cols-2 gap-8 lg:gap-14 items-start">
-        {/* Multi-Angle Zoomable Stage: Clean, Minimalist & Distraction-Free */}
-        <div className="space-y-4">
-          <div className="relative">
-            <ProductImageViewer
-              src={activeImage}
-              alt={`${localizedName} - ${selectedImgIndex + 1}`}
-              isOutOfStock={isOutOfStock}
-            />
-
-            {/* Out of Stock Floating Alert Badge (only if completely unavailable) */}
-            {isOutOfStock && (
-              <span className="absolute bottom-4 start-4 z-20 bg-slate-900/90 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-xs pointer-events-none">
-                {t("products.outOfStock")}
-              </span>
-            )}
-          </div>
-
-          {/* Multi-angle Thumbnails Showcase (Shown only if multiple angles exist) */}
-          {galleryImages.length > 1 && (
-            <div className="space-y-2 p-3 bg-muted/30 rounded-2xl border border-border/60">
-              <div className="flex items-center justify-between text-xs px-1">
-                <span className="font-semibold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
-                  <Layers className="w-3.5 h-3.5 text-primary" />
-                  <span>
-                    {language === "ar"
-                      ? `زوايا تصوير المنتج (${galleryImages.length} صور)`
-                      : `Product Angles (${galleryImages.length} photos)`}
-                  </span>
-                </span>
-                <span className="text-[11px] font-mono text-muted-foreground bg-background px-2 py-0.5 rounded-full border border-border/50">
-                  {selectedImgIndex + 1} / {galleryImages.length}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-1 no-scrollbar scroll-smooth">
-                {galleryImages.map((imgUrl, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedImgIndex(idx)}
-                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                      idx === selectedImgIndex
-                        ? "border-primary shadow-xs ring-2 ring-primary/20 scale-102"
-                        : "border-border/80 opacity-70 hover:opacity-100 hover:border-slate-400"
-                    }`}
-                    aria-label={`Angle ${idx + 1}`}
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={`${localizedName} - ${idx + 1}`}
-                      className="w-full h-full object-contain p-1 bg-white dark:bg-slate-900"
-                      loading="lazy"
-                    />
-                    {idx === selectedImgIndex && (
-                      <span className="absolute bottom-0 inset-x-0 h-1 bg-primary" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Sensory Badges Bar */}
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-              <Leaf className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
-              <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                {language === "ar" ? "نباتي 100%" : "100% Vegan"}
-              </span>
-              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                {language === "ar" ? "مستخلصات عضوية" : "Organic Extracts"}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-              <Droplets className="w-4 h-4 text-sky-600 mx-auto mb-1" />
-              <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                {language === "ar" ? "ترطيب 24h" : "24h Hydration"}
-              </span>
-              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                {language === "ar" ? "تغذية خلوية عميقة" : "Deep Cell Nourish"}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-              <Award className="w-4 h-4 text-amber-600 mx-auto mb-1" />
-              <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                {language === "ar" ? "جودة معتمدة" : "Certified Quality"}
-              </span>
-              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                {language === "ar" ? "آمن ومختبر" : "Safe & Tested"}
-              </span>
-            </div>
-          </div>
-        </div>
+        <ProductGalleryViewer
+          galleryImages={galleryImages}
+          defaultImageUrl={p.image_url}
+          productName={localizedName}
+          isOutOfStock={isOutOfStock}
+          language={language}
+          outOfStockLabel={t("products.outOfStock")}
+        />
 
         {/* Product Info & Purchase Controls */}
         <div className="flex flex-col justify-start">
@@ -400,7 +316,7 @@ function Detail() {
           </h1>
 
           {/* Rating Summary Link */}
-          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               <span className="text-sm font-bold text-slate-900 dark:text-slate-100">4.9</span>
@@ -409,6 +325,34 @@ function Detail() {
             <a href="#product-reviews" className="text-xs text-primary hover:underline font-bold">
               {t("productDetail.verifiedReviews")}
             </a>
+          </div>
+
+          {/* Velvetica CRO Clinical Trust Checklist */}
+          <div className="space-y-1.5 mb-4 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 text-xs">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>
+                {language === "ar"
+                  ? "مختبر سريرياً وموصى به من قبل خبراء العناية الطبيعية الفائقة"
+                  : "Clinically tested & recommended by organic skincare specialists"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>
+                {language === "ar"
+                  ? "نتائج ملحوظة ونضارة واضحة خلال الأسبوع الأول من الاستخدام المنتظم"
+                  : "Visible glow and hydration within the first week of regular use"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+              <Leaf className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>
+                {language === "ar"
+                  ? "تركيبة نباتية نقية 100% خالية تماماً من البارابين والعطور الاصطناعية"
+                  : "100% pure botanical formula, free from parabens & synthetic fragrances"}
+              </span>
+            </div>
           </div>
 
           {/* Pricing & Stock status with Integrated Discount Pill */}
@@ -463,12 +407,22 @@ function Detail() {
           </div>
 
           {/* Short Lead Summary */}
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed mb-6 whitespace-pre-line">
+          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed mb-4 whitespace-pre-line">
             {cleanProductDescription(localizedDescription) ||
               (language === "ar"
                 ? "منتج عناية تخصصي عالي الفعالية، مصمم لتغذية بشرتكِ ومنحها الإشراقة والترطيب العميق طوال اليوم دون أي ملمس دهني."
                 : "A high-performance specialized skincare treatment designed to deeply nourish, hydrate, and illuminate your skin all day without any greasy residue.")}
           </p>
+
+          {/* Tiered Quantity Savings Cards (Velvetica CRO Buy More Save More) */}
+          {!isOutOfStock && (
+            <ProductQuantitySavingsTiers
+              unitPrice={price}
+              currentQuantity={quantity}
+              onSelectQuantity={setQuantity}
+              language={language}
+            />
+          )}
 
           {/* Quantity Selector */}
           {!isOutOfStock && (
@@ -785,6 +739,24 @@ function Detail() {
         </Accordion>
       </section>
 
+      {/* Routine Upsell: Velvetica CRO Complete Your Routine */}
+      <ProductRoutineUpsell
+        currentProductId={p.id}
+        allProducts={allProducts || []}
+        onAddAddonToCart={(addon) =>
+          add(
+            {
+              id: addon.id,
+              name: getLocalizedProductName(addon, language),
+              price: Number(addon.price),
+              image_url: addon.image_url,
+            },
+            1,
+          )
+        }
+        language={language}
+      />
+
       {/* Customer Reviews & Experiences Section */}
       <ProductReviewsSection productId={p.id} productName={localizedName} />
 
@@ -817,53 +789,18 @@ function Detail() {
       )}
 
       {/* Sticky Bottom Buy Bar on Mobile / Scrolled View */}
-      {showStickyBar && (
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-md border-t border-slate-200/80 p-3 sm:px-6 shadow-2xl transition-all duration-300 md:hidden flex items-center justify-between gap-3 animate-in slide-in-from-bottom-5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <img
-              src={resolveProductImage(p.image_url)}
-              alt={localizedName}
-              className="w-11 h-11 rounded-xl object-contain p-0.5 bg-white dark:bg-slate-900 border border-slate-200 shrink-0"
-            />
-            <div className="min-w-0">
-              <h4 className="text-xs font-bold truncate text-slate-900 dark:text-slate-100">
-                {localizedName}
-              </h4>
-              <span className="text-sm font-bold text-primary" suppressHydrationWarning>
-                {primaryPrice}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              disabled={isOutOfStock}
-              onClick={handleAddToCart}
-              className="h-10 px-4 rounded-xl text-xs font-bold gap-1.5 shadow-xs"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>{t("common.addToCart")}</span>
-            </Button>
-
-            <a
-              href={getWhatsAppProductOrderUrl(localizedName, price * quantity, p.id)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-10 px-3 rounded-xl border-emerald-600/40 text-emerald-700 hover:bg-emerald-50"
-                aria-label="WhatsApp Order"
-              >
-                <WhatsAppEmblemIcon size={16} className="text-emerald-600" />
-              </Button>
-            </a>
-          </div>
-        </div>
-      )}
+      <ProductStickyBuyBar
+        productName={localizedName}
+        productPrice={price}
+        imageUrl={p.image_url}
+        quantity={quantity}
+        onIncreaseQty={() => setQuantity((q) => Math.min(maxAvailable, q + 1))}
+        onDecreaseQty={() => setQuantity((q) => Math.max(1, q - 1))}
+        onAddToCart={handleAddToCart}
+        isOutOfStock={isOutOfStock}
+        language={language}
+        visible={showStickyBar}
+      />
     </div>
   );
 }

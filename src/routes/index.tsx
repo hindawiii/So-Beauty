@@ -196,16 +196,16 @@ function Index() {
     switch (secId) {
       case "hero":
         return (
-          <section key="hero" className="bg-primary/5 py-8 md:py-14 transition-colors">
-            <div className="container mx-auto px-4 grid md:grid-cols-2 gap-8 items-center">
+          <section key="hero" className="bg-primary/5 py-6 sm:py-8 md:py-14 transition-colors">
+            <div className="container mx-auto px-4 grid md:grid-cols-2 gap-6 md:gap-8 items-center">
               <div>
                 <h1
-                  className="text-3xl md:text-5xl font-bold text-primary mb-3 leading-tight"
+                  className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-bold text-primary mb-2 sm:mb-3 leading-snug sm:leading-tight tracking-tight"
                   style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
                 >
                   {heroTitle}
                 </h1>
-                <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
+                <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-300 mb-4 sm:mb-6 leading-relaxed">
                   {heroSubtitle}
                 </p>
                 <div className="flex flex-row items-center gap-2.5 sm:gap-3.5 w-full max-w-md">
@@ -475,7 +475,7 @@ function Index() {
       case "reviews":
         if (settings.showCustomerReviews === false) return null;
         return (
-          <div key="reviews" className="container mx-auto px-4 py-8">
+          <div key="reviews" className="container mx-auto px-4 py-4 sm:py-6">
             <ProductReviewsSection />
           </div>
         );
