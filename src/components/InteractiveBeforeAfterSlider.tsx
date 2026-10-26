@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
-  Sparkle,
   ChevronDown,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
@@ -32,28 +31,22 @@ export function InteractiveBeforeAfterSlider() {
     {
       id: 1,
       stat: "96%",
-      titleAr: "ترطيب عميق ونعومة فورية",
-      titleEn: "Deep Hydration & Instant Softness",
-      descAr: "ملحوظ من الأسبوع الأول من الاستخدام المنتظم مع تحسن ملموس في مرونة البشرة وحيويتها.",
-      descEn: "Visibly noticed from the first week of regular use with marked boost in elasticity.",
+      titleAr: "ترطيب ونعومة فورية",
+      titleEn: "Instant Hydration",
       icon: null,
     },
     {
       id: 2,
       stat: "91%",
-      titleAr: "توحيد لون البشرة والنضارة",
-      titleEn: "Radiant Even Skin Tone",
-      descAr: "تلاشي البقع الباهتة وتوحيد لون البشرة واستعادة الإشراقة الطبيعية الصحية.",
-      descEn: "Reduction in dull patches with restored natural healthy glow and even tone.",
+      titleAr: "توحيد اللون والنضارة",
+      titleEn: "Radiant Even Tone",
       icon: null,
     },
     {
       id: 3,
-      stat: null,
-      titleAr: "دورة تجديد خلال 28 يوماً",
-      titleEn: "28-Day Renewal Cycle",
-      descAr: "متوسط دورة تجديد خلايا البشرة بالتركيبات العشبية الطبيعية دون التسبب في أي تهيج.",
-      descEn: "Natural cell replenishment powered by pure botanicals in complete gentle harmony.",
+      stat: "28 يوم",
+      titleAr: "تجديد خلايا طبيعي",
+      titleEn: "28-Day Renewal",
       icon: Clock,
     },
   ];
@@ -120,24 +113,20 @@ export function InteractiveBeforeAfterSlider() {
         />
 
         {/* Header Ribbon */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 mb-4 sm:mb-6 md:mb-8 pb-3.5 sm:pb-5 border-b border-primary/10">
+        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6 pb-2.5 border-b border-primary/10">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-bold mb-2 border border-primary/15">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-1 border border-primary/15">
               <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
               <span>
-                {language === "ar" ? "نتائج سريرية مثبتة" : "Clinically Proven Transformations"}
+                {language === "ar"
+                  ? "نتائج مثبتة سريرياً · 4 أسابيع 🌿"
+                  : "Clinically Proven · 4-Week Care 🌿"}
               </span>
             </div>
             <h2 className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {t("home.beforeAfterTitle")}
             </h2>
           </div>
-
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-sm leading-relaxed">
-            {language === "ar"
-              ? "مرري المقبض لمشاهدة استعادة نضارة البشرة الطبيعية بعد 4 أسابيع من الاستخدام."
-              : "Drag the slider to reveal restored radiance and hydration after 4 weeks of regular care."}
-          </p>
         </div>
 
         {/* 2-Column Balanced Architecture (Starting on Tablet `md:` so Tablet & Desktop display in ONE comfortable row) */}
@@ -287,37 +276,32 @@ export function InteractiveBeforeAfterSlider() {
           </div>
 
           {/* Column 2: Concise Clinical Trust & Direct In-Place Routine Quick Action */}
-          <div className="md:col-span-5 flex flex-col justify-center gap-3">
-            {/* Scannable Clinical Evidence Trust Strip (No heavy accordions) */}
-            <div className="flex flex-col gap-2">
+          <div className="md:col-span-5 flex flex-col justify-center gap-2.5">
+            {/* Sleek Horizontal Micro-Metrics Ticker */}
+            <div className="grid grid-cols-3 divide-x divide-x-reverse rtl:divide-x-reverse divide-primary/10 rounded-xl sm:rounded-2xl border border-primary/15 bg-card/95 py-2.5 px-1 shadow-2xs">
               {clinicalMetrics.map((metric) => (
                 <div
                   key={metric.id}
-                  className="rounded-xl sm:rounded-2xl border border-primary/15 bg-card/90 p-2.5 sm:p-3 flex items-center gap-3 shadow-2xs"
+                  className="flex flex-col items-center justify-center text-center px-1"
                 >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 font-extrabold text-xs sm:text-sm">
-                    {metric.icon ? <metric.icon className="w-4 h-4 text-primary" /> : metric.stat}
+                  <div className="font-extrabold text-xs sm:text-sm text-primary leading-tight">
+                    {metric.stat}
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {language === "ar" ? metric.titleAr : metric.titleEn}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {language === "ar" ? metric.descAr : metric.descEn}
-                    </p>
+                  <div className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 leading-tight mt-0.5">
+                    {language === "ar" ? metric.titleAr : metric.titleEn}
                   </div>
                 </div>
               ))}
             </div>
 
             {/* In-Place Routine Quick Action */}
-            <div className="pt-1 flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="pt-0.5 flex flex-col items-center gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span className="truncate">
                   {language === "ar"
-                    ? "تركيبات عشبية نقية مختبرة وآمنة تماماً على البشرة."
-                    : "Dermatologically approved botanicals safe for sensitive skin."}
+                    ? "تركيبات عشبية نقية مختبرة ومعتمدة"
+                    : "Certified pure botanicals safe for sensitive skin"}
                 </span>
               </div>
 
@@ -334,12 +318,9 @@ export function InteractiveBeforeAfterSlider() {
                   }
                 }}
                 size="sm"
-                className="w-full rounded-full px-4 sm:px-6 h-10 sm:h-11 min-h-[42px] text-xs sm:text-sm font-bold gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
+                className="w-full max-w-[260px] sm:max-w-[280px] rounded-full px-5 min-h-[44px] h-11 text-xs sm:text-sm font-bold gap-2 cursor-pointer shadow-xs hover:shadow-md transition-all justify-center"
               >
-                <Sparkle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
-                <span>
-                  {language === "ar" ? "اكتشفي باقات وروتين النتائج" : "Explore Proven Routines"}
-                </span>
+                <span>{language === "ar" ? "تسوّقي روتين النتائج" : "Shop Proven Routine"}</span>
                 <ChevronDown className="w-3.5 h-3.5 animate-bounce shrink-0" />
               </Button>
             </div>

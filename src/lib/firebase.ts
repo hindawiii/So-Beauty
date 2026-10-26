@@ -1,21 +1,31 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore, setLogLevel } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Initialize Firebase App safely (singleton)
 export const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// CRITICAL: Initialize Firestore using the provisioned database ID
-export const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || "(default)");
+const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
 
-// Set log level to silence internal gRPC idle stream warnings
+// CRITICAL: Initialize Firestore with auto-detect long-polling for iframe/sandbox environments
+export const db = (() => {
+  try {
+    return initializeFirestore(
+      firebaseApp,
+      {
+        experimentalAutoDetectLongPolling: true,
+      },
+      dbId,
+    );
+  } catch {
+    return getFirestore(firebaseApp, dbId);
+  }
+})();
+
+// Silence internal gRPC idle stream / connection retry warnings in dev/sandbox
 try {
-  import("firebase/firestore")
-    .then(({ setLogLevel }) => {
-      setLogLevel("error");
-    })
-    .catch(() => {});
+  setLogLevel("silent");
 } catch {
   // Graceful no-op
 }

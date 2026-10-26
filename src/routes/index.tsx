@@ -6,11 +6,12 @@ import {
   CreditCard,
   Truck,
   Sparkles,
-  Star,
   ArrowLeft,
   CheckCircle2,
   RotateCcw,
   X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { LuxeBundlesCarousel } from "@/components/LuxeBundlesCarousel";
 import { InteractiveBeforeAfterSlider } from "@/components/InteractiveBeforeAfterSlider";
@@ -58,11 +59,18 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: ({ context }) => {
-    // 1. Instant Cache Seeding to ensure zero render delay
-    const cached = context.queryClient.getQueryData(["products", "featured"]);
-    if (!cached) {
+    // 1. Instant Cache Seeding for featured and boxes to ensure 0ms render delay
+    const cachedFeatured = context.queryClient.getQueryData(["products", "featured"]);
+    if (!cachedFeatured) {
       const activeMocks = MOCK_PRODUCTS.filter((p) => p.is_active).map(attachMetadataToProduct);
       context.queryClient.setQueryData(["products", "featured"], activeMocks);
+    }
+    const cachedBoxes = context.queryClient.getQueryData(["products", "box"]);
+    if (!cachedBoxes) {
+      const activeBoxes = MOCK_PRODUCTS.filter((p) => p.is_active && p.category === "box").map(
+        attachMetadataToProduct,
+      );
+      context.queryClient.setQueryData(["products", "box"], activeBoxes);
     }
     // 2. Fetch fresh data in the background without freezing or delaying UI
     context.queryClient.prefetchQuery(featuredQuery);
@@ -94,13 +102,20 @@ function Index() {
       ? "نقاء الطبيعة، وفخامة العناية التي تليق بنضارتكِ"
       : "Pure Botanical Care for Your Radiant Skin",
   );
-  const heroSubtitle = getLocalizedSetting(
-    settings.heroSubtitle,
-    language,
-    language === "ar"
-      ? "مستخلصات عشبية وزيوت أصلية 100% لبشرة نضرة وصحية — جودة معتمدة ودفع عند الاستلام."
-      : "100% pure botanical formulas and certified skincare crafted for lasting radiance with fast delivery.",
-  );
+  const isCustomSubtitle =
+    Boolean(settings.heroSubtitle) &&
+    !settings.heroSubtitle?.includes("— جودة معتمدة ودفع عند الاستلام");
+  const heroSubtitle = isCustomSubtitle
+    ? getLocalizedSetting(
+        settings.heroSubtitle,
+        language,
+        language === "ar"
+          ? "مستخلصات عشبية وزيوت أصلية 100% تمنح بشرتكِ إشراقة طبيعية ونضارة صحية تدوم."
+          : "100% pure botanical formulas and certified skincare crafted for lasting radiance.",
+      )
+    : language === "ar"
+      ? "مستخلصات عشبية وزيوت أصلية 100% تمنح بشرتكِ إشراقة طبيعية ونضارة صحية تدوم."
+      : "100% pure botanical formulas and certified skincare crafted for lasting radiance.";
   const heroPrimaryCta =
     getLocalizedSetting(settings.heroPrimaryCtaText, language, settings.heroPrimaryCtaText_en) ||
     t("home.shopNowBtn");
@@ -196,23 +211,35 @@ function Index() {
     switch (secId) {
       case "hero":
         return (
-          <section key="hero" className="bg-primary/5 py-6 sm:py-8 md:py-14 transition-colors">
-            <div className="container mx-auto px-4 grid md:grid-cols-2 gap-6 md:gap-8 items-center">
-              <div>
+          <section key="hero" className="bg-primary/5 py-6 sm:py-10 md:py-14 transition-colors">
+            <div className="container mx-auto px-4 grid md:grid-cols-2 gap-6 md:gap-10 items-center">
+              <div className="flex flex-col items-center md:items-start text-center md:text-start max-w-xl mx-auto md:mx-0">
+                {/* Floating Eyebrow Pill Badge */}
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3 sm:mb-4 border border-primary/20 shadow-2xs">
+                  <span>
+                    {language === "ar"
+                      ? "عناية نباتية فاخرة ومصرحة 🌿"
+                      : "Certified 100% Botanical Skincare 🌿"}
+                  </span>
+                </div>
+
                 <h1
-                  className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-bold text-primary mb-2 sm:mb-3 leading-snug sm:leading-tight tracking-tight"
+                  className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-primary mb-3 sm:mb-4 leading-snug sm:leading-tight tracking-tight text-balance"
                   style={{ fontFamily: settings.fontDisplay || "var(--font-display)" }}
                 >
                   {heroTitle}
                 </h1>
-                <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-300 mb-4 sm:mb-6 leading-relaxed">
+
+                <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-300 mb-5 sm:mb-6 leading-relaxed max-w-lg text-balance">
                   {heroSubtitle}
                 </p>
-                <div className="flex flex-row items-center gap-2.5 sm:gap-3.5 w-full max-w-md">
+
+                {/* Unified Luxe Pill Buttons */}
+                <div className="flex flex-row items-center gap-2.5 sm:gap-3.5 w-full max-w-md justify-center md:justify-start">
                   <Link to="/products" className="flex-1">
                     <Button
                       size="lg"
-                      className="w-full shadow-xs rounded-xl font-bold text-xs sm:text-sm h-11 sm:h-12 cursor-pointer"
+                      className="w-full shadow-xs hover:shadow-md rounded-full font-bold text-xs sm:text-sm h-11 sm:h-12 cursor-pointer transition-all active:scale-98"
                     >
                       {heroPrimaryCta}
                     </Button>
@@ -221,19 +248,23 @@ function Index() {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="w-full rounded-xl font-semibold text-xs sm:text-sm h-11 sm:h-12 border-primary/30 hover:bg-primary/5 cursor-pointer"
+                      className="w-full rounded-full font-semibold text-xs sm:text-sm h-11 sm:h-12 border-primary/30 hover:bg-primary/10 text-primary cursor-pointer transition-all active:scale-98"
                     >
                       {heroSecondaryCta}
                     </Button>
                   </Link>
                 </div>
               </div>
-              <div className="overflow-hidden rounded-3xl shadow-lg border border-slate-200/60 bg-white">
-                <img
-                  src={heroImage}
-                  alt={settings.storeName}
-                  className="w-full h-auto max-h-[460px] object-cover hover:scale-102 transition-transform duration-500"
-                />
+
+              {/* Framed Hero Image with Pure White Outer Border & Soft Shadow */}
+              <div className="overflow-hidden rounded-3xl shadow-lg border border-slate-200/90 bg-white p-1.5 sm:p-2 dark:bg-card dark:border-white/10">
+                <div className="overflow-hidden rounded-2xl relative">
+                  <img
+                    src={heroImage}
+                    alt={settings.storeName}
+                    className="w-full h-auto max-h-[460px] object-cover hover:scale-102 transition-transform duration-700"
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -434,22 +465,10 @@ function Index() {
       case "featured_products":
         return (
           <section key="featured_products" className="container mx-auto px-4 py-7 sm:py-9">
-            <div className="flex justify-between items-baseline mb-6">
-              <div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
-                  {t("home.featuredTitle")}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {t("home.featuredSubtitle")}
-                </p>
-              </div>
-              <Link
-                to="/products"
-                className="text-primary font-semibold flex items-center gap-1 text-xs sm:text-sm hover:underline"
-              >
-                <span>{t("common.viewAll")}</span>
-                <ArrowLeft className="w-4 h-4 rtl:rotate-0 rotate-180" />
-              </Link>
+            <div className="mb-4 sm:mb-5">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+                {t("home.featuredTitle")}
+              </h2>
             </div>
             <Suspense
               fallback={
@@ -499,6 +518,7 @@ function FeaturedProducts() {
   const { language, t } = useLanguage();
   const { data: allProducts } = useSuspenseQuery(featuredQuery);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const categories = useMemo(
     () =>
@@ -509,10 +529,16 @@ function FeaturedProducts() {
   // Ordered filter sequence for fluid swipe gestures
   const filterList = useMemo(() => ["all", "offers", ...categories], [categories]);
 
+  const handleFilterChange = useCallback((filter: string) => {
+    setSelectedFilter(filter);
+    setIsExpanded(false);
+  }, []);
+
   const handleSwipeNext = useCallback(() => {
     const currentIndex = filterList.indexOf(selectedFilter);
     if (currentIndex < filterList.length - 1) {
       setSelectedFilter(filterList[currentIndex + 1]);
+      setIsExpanded(false);
     }
   }, [filterList, selectedFilter]);
 
@@ -520,6 +546,7 @@ function FeaturedProducts() {
     const currentIndex = filterList.indexOf(selectedFilter);
     if (currentIndex > 0) {
       setSelectedFilter(filterList[currentIndex - 1]);
+      setIsExpanded(false);
     }
   }, [filterList, selectedFilter]);
 
@@ -530,14 +557,23 @@ function FeaturedProducts() {
     threshold: 45,
   });
 
-  const filtered =
-    selectedFilter === "all"
-      ? allProducts.slice(0, 8)
-      : selectedFilter === "offers"
-        ? allProducts
-            .filter((p) => p.original_price != null && Number(p.original_price) > Number(p.price))
-            .slice(0, 8)
-        : allProducts.filter((p) => p.category === selectedFilter).slice(0, 8);
+  const matchingProducts = useMemo(() => {
+    if (selectedFilter === "all") return allProducts;
+    if (selectedFilter === "offers") {
+      return allProducts.filter(
+        (p) => p.original_price != null && Number(p.original_price) > Number(p.price),
+      );
+    }
+    return allProducts.filter((p) => p.category === selectedFilter);
+  }, [allProducts, selectedFilter]);
+
+  // Initial compact count: 6 products (balanced 2-col on mobile, 3-col on desktop)
+  const INITIAL_COUNT = 6;
+  const hasMore = matchingProducts.length > INITIAL_COUNT;
+  const displayedProducts = isExpanded
+    ? matchingProducts
+    : matchingProducts.slice(0, INITIAL_COUNT);
+  const remainingCount = matchingProducts.length - INITIAL_COUNT;
 
   const layout = settings.homepageProductsLayout || "grid";
 
@@ -548,7 +584,7 @@ function FeaturedProducts() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => setSelectedFilter("all")}
+            onClick={() => handleFilterChange("all")}
             className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               selectedFilter === "all"
                 ? "bg-primary text-primary-foreground shadow-xs"
@@ -560,7 +596,7 @@ function FeaturedProducts() {
 
           <button
             type="button"
-            onClick={() => setSelectedFilter("offers")}
+            onClick={() => handleFilterChange("offers")}
             className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 flex items-center gap-1 ${
               selectedFilter === "offers"
                 ? "bg-rose-600 text-white shadow-xs"
@@ -575,7 +611,7 @@ function FeaturedProducts() {
             <button
               key={cat}
               type="button"
-              onClick={() => setSelectedFilter(cat)}
+              onClick={() => handleFilterChange(cat)}
               className={`px-3.5 py-1.5 rounded-full font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 selectedFilter === cat
                   ? "bg-primary text-primary-foreground shadow-xs"
@@ -589,21 +625,45 @@ function FeaturedProducts() {
       </div>
 
       {/* Strict 2-on-Mobile and 3-on-Desktop Grid Principle with gap-2.5 */}
-      {filtered.length === 0 ? (
+      {displayedProducts.length === 0 ? (
         <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
           <p className="text-xs sm:text-sm text-slate-500">{t("common.noResults")}</p>
         </div>
       ) : layout === "bento" ? (
-        <BentoProductsGrid products={filtered} />
+        <BentoProductsGrid products={displayedProducts} />
       ) : layout === "carousel" ? (
-        <CarouselProducts products={filtered} />
+        <CarouselProducts products={displayedProducts} />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-2.5 sm:gap-3.5 md:gap-5 transition-all duration-300">
-          {filtered.map((p) => (
+          {displayedProducts.map((p) => (
             <div key={p.id} className="w-full h-full flex flex-col">
               <ProductCard product={p} />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Dynamic In-Place Progressive Disclosure Controls */}
+      {hasMore && (
+        <div className="pt-2 sm:pt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="w-full max-w-[240px] sm:max-w-[260px] h-11 px-6 rounded-full inline-flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/15 text-primary dark:bg-primary/20 dark:hover:bg-primary/25 font-bold text-xs sm:text-sm transition-all cursor-pointer active:scale-98 border border-primary/25 shadow-2xs hover:shadow-xs"
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? (
+              <>
+                <span>{language === "ar" ? "عرض أقل" : "Show Less"}</span>
+                <ChevronUp className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                <span>{language === "ar" ? "عرض المزيد" : "Show More"}</span>
+                <ChevronDown className="w-4 h-4" />
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>

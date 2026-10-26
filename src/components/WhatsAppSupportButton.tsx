@@ -105,16 +105,16 @@ export function WhatsAppSupportButton() {
     const winHeight = typeof window !== "undefined" ? window.innerHeight : 844;
     setWindowDimensions({ width: winWidth, height: winHeight });
 
-    let initialX = isRTL ? 20 : winWidth - 76;
-    let initialY = Math.max(120, winHeight - 110);
+    let initialX = isRTL ? 14 : winWidth - 66;
+    let initialY = Math.max(120, winHeight - 88);
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-          const clampedX = Math.min(Math.max(16, parsed.x), winWidth - 76);
-          const clampedY = Math.min(Math.max(75, parsed.y), winHeight - 95);
+          const clampedX = Math.min(Math.max(12, parsed.x), winWidth - 66);
+          const clampedY = Math.min(Math.max(75, parsed.y), winHeight - 88);
           initialX = clampedX;
           initialY = clampedY;
         }
@@ -615,12 +615,12 @@ export function WhatsAppSupportButton() {
               </span>
 
               {isExpanded ? (
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-2 border-white transition-all">
-                  <X className="w-6 h-6 transition-transform duration-200" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-2 border-white transition-all">
+                  <X className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-200" />
                 </div>
               ) : (
                 <WhatsAppOrganicIcon
-                  size={58}
+                  size={windowDimensions.width < 640 ? 50 : 56}
                   className="filter drop-shadow-md hover:drop-shadow-xl transition-all"
                 />
               )}
